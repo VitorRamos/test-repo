@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+
+  app:
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend/dist:/app/frontend/dist
+
+    command: uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+
+
+  frontend-watch:
+    image: node:20
+    working_dir: /frontend
+
+    volumes:
+      - ./frontend:/frontend
+      - ./frontend/dist:/frontend/dist
+
+    command: sh -c "npm install && npm run build:watch"
+
+    depends_on:
+      - app
