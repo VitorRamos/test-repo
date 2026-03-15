@@ -14,16 +14,11 @@ class Instructor(Base):
         primary_key=True,
         default=uuid4
     )
-
     user_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True))
-
     name: Mapped[str]
     cpf: Mapped[str]
-
     detran_license: Mapped[str]
     price_per_hour: Mapped[float]
-
     city: Mapped[str]
     state: Mapped[str]
-
     rating: Mapped[float] = mapped_column(default=0)

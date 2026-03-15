@@ -13,10 +13,7 @@ class Student(Base):
         primary_key=True,
         default=uuid4
     )
-
     user_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True))
-
     name: Mapped[str]
     cpf: Mapped[str]
-
     license_category: Mapped[str]

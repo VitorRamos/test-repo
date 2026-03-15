@@ -13,9 +13,7 @@ class User(Base):
         primary_key=True,
         default=uuid4
     )
-
     email: Mapped[str] = mapped_column(unique=True)
     password_hash: Mapped[str]
     role: Mapped[str]
-
     active: Mapped[bool] = mapped_column(default=True)

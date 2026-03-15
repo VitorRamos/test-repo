@@ -6,5 +6,8 @@ dependencies = [
   "uvicorn[standard]",
   "sqlalchemy",
   "psycopg[binary]",
-  "pydantic"
+  "pydantic[email]",
+  "passlib[bcrypt]",
+  "python-jose[cryptography]",
+  "bcrypt<4.1"
 ]

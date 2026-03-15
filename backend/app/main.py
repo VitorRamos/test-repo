@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.app.api.routes import instructors
 from backend.app.db.session import engine
 from backend.app.db.base import Base
+from backend.app.api.routes import auth
 
 # import models so SQLAlchemy registers them
 import backend.app.models.user
@@ -21,6 +22,12 @@ app.include_router(
     instructors.router,
     prefix="/api/instructors",
     tags=["instructors"]
+)
+
+app.include_router(
+    auth.router,
+    prefix="/api/auth",
+    tags=["auth"]
 )
 
 @app.get("/api/health")
