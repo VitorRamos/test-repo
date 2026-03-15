@@ -9,5 +9,6 @@ dependencies = [
   "pydantic[email]",
   "passlib[bcrypt]",
   "python-jose[cryptography]",
-  "bcrypt<4.1"
+  "bcrypt<4.1",
+  "python-multipart"
 ]
