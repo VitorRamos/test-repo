@@ -2,8 +2,6 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from backend.app.api.routes import instructors
-
-# DB setup
 from backend.app.db.session import engine
 from backend.app.db.base import Base
 
@@ -14,13 +12,10 @@ import backend.app.models.student
 import backend.app.models.lesson
 import backend.app.models.payment
 
-
 app = FastAPI()
-
 
 # create database tables (development only)
 Base.metadata.create_all(bind=engine)
-
 
 app.include_router(
     instructors.router,
@@ -28,10 +23,8 @@ app.include_router(
     tags=["instructors"]
 )
 
-
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
-
 
 app.mount("/", StaticFiles(directory="frontend/dist", html=True))
