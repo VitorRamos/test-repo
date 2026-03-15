@@ -27,6 +27,10 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 @router.post("/register")
 def register(data: UserCreate, db: Session = Depends(get_db)):
 
+    user = db.query(User).filter(User.email == data.email).first()
+    if user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
     user = User(
         email=data.email,
         password_hash=hash_password(data.password),
