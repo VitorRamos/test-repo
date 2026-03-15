@@ -1,19 +1,42 @@
-import { useEffect, useState } from "react"
+import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { useAuth } from "./hooks/useAuth"
+import { Navigation } from "./components/Navigation"
+import { ProtectedRoute } from "./components/ProtectedRoute"
+import { Home } from "./pages/Home"
+import { Login } from "./pages/Login"
+import { Register } from "./pages/Register"
+import { InstructorRegister } from "./pages/InstructorRegister"
+import { Dashboard } from "./pages/Dashboard"
+import "./App.css"
 
 function App() {
-  const [data, setData] = useState<any>(null)
-
-  useEffect(() => {
-    fetch("/api/health")
-      .then(res => res.json())
-      .then(setData)
-  }, [])
+  const { user, logout } = useAuth()
 
   return (
-    <div>
-      <h1>Driving Instructor Platform</h1>
-      <pre>{JSON.stringify(data)}</pre>
-    </div>
+    <BrowserRouter>
+      <Navigation user={user} onLogout={logout} />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route
+          path="/become-instructor"
+          element={
+            <ProtectedRoute user={user}>
+              <InstructorRegister user={user} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/instructor"
+          element={
+            <ProtectedRoute user={user} requiredRole="instructor">
+              <Dashboard user={user} />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
   )
 }
 

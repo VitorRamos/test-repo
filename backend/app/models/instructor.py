@@ -1,4 +1,5 @@
 from uuid import UUID, uuid4
+from datetime import datetime
 
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
@@ -21,4 +22,8 @@ class Instructor(Base):
     price_per_hour: Mapped[float]
     city: Mapped[str]
     state: Mapped[str]
-    rating: Mapped[float] = mapped_column(default=0)
+    bio: Mapped[str | None] = mapped_column(nullable=True)
+    rating: Mapped[float] = mapped_column(default=0.0)
+    total_lessons: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    active: Mapped[bool] = mapped_column(default=True)

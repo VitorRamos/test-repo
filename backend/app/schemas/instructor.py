@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from datetime import datetime
 
 
 class InstructorCreate(BaseModel):
@@ -8,8 +9,16 @@ class InstructorCreate(BaseModel):
     price_per_hour: float
     city: str
     state: str
+    bio: str | None = None
 
 
 class InstructorRead(InstructorCreate):
     id: str
+    user_id: str
     rating: float
+    total_lessons: int
+    created_at: datetime
+    active: bool
+
+    class Config:
+        from_attributes = True
