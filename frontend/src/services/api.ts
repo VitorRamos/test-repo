@@ -50,7 +50,7 @@ export const api = {
   },
 
   instructors: {
-    create: (data: any) =>
+    register: (data: any) =>
       api.request("/instructors/", {
         method: "POST",
         body: JSON.stringify(data)
@@ -69,12 +69,10 @@ export const api = {
     },
 
     getById: (id: string) =>
-      api.request(`/instructors/${id}`, { method: "GET" })
-  },
+      api.request(`/instructors/${id}`, { method: "GET" }),
 
-  instructor: {
     getStats: () =>
-      api.request("/instructor/stats", { method: "GET" }).catch(() => ({
+      api.request("/instructors/stats", { method: "GET" }).catch(() => ({
         total_lessons: 0,
         rating: 0,
         students_taught: 0,
@@ -85,7 +83,7 @@ export const api = {
       })),
 
     getEarnings: () =>
-      api.request("/instructor/earnings", { method: "GET" }).catch(() => ({
+      api.request("/instructors/earnings", { method: "GET" }).catch(() => ({
         total_earnings: 0,
         pending_earnings: 0,
         completed_lessons: 0,
@@ -93,6 +91,6 @@ export const api = {
       })),
 
     getLessons: () =>
-      api.request("/instructor/my-lessons", { method: "GET" }).catch(() => [])
+      api.request("/instructors/my-lessons", { method: "GET" }).catch(() => [])
   }
 }

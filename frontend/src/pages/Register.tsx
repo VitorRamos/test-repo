@@ -53,7 +53,7 @@ export function Register() {
       setLoading(true)
 
       if (role === "instructor") {
-        await api.instructors.create({
+        await api.instructors.register({
           email: form.email,
           password: form.password,
           name: form.name,

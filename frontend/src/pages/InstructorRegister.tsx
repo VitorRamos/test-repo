@@ -51,7 +51,7 @@ export function InstructorRegister({ user }: InstructorRegisterProps) {
         ...formData,
         price_per_hour: parseFloat(formData.price_per_hour)
       }
-      await api.instructors.create(payload)
+      await api.instructors.register(payload)
       navigate("/")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed")
