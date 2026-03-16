@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 from backend.app.api.routes import instructors
 from backend.app.db.session import engine
@@ -34,4 +36,13 @@ app.include_router(
 def health():
     return {"status": "ok"}
 
-app.mount("/", StaticFiles(directory="frontend/dist", html=True))
+# Mount static assets
+app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
+
+# Catch-all route for SPA - serve index.html for all non-API routes
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    index_path = "frontend/dist/index.html"
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"detail": "Not Found"}
