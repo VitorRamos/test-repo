@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.post("/", response_model=InstructorRead)
-def create_instructor(
+def register_instructor(
     data: InstructorCreate,
     db: Session = Depends(get_db)
 ):
