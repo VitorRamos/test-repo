@@ -46,9 +46,9 @@ def create_instructor(
     user: User = Depends(get_current_user)
 ):
     instructor = db.query(Instructor).filter(Instructor.cpf == data.cpf).first()
-    if not instructor:
+    if instructor:
         raise HTTPException(status_code=404, detail="Instructor with this CPF already exists")
-        
+
     instructor = Instructor(
         **data.model_dump(),
         user_id=user.id
