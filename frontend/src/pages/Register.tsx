@@ -69,7 +69,6 @@ export function Register() {
               placeholder="••••••••"
               minLength={8}
             />
-            <small>Mínimo 8 caracteres</small>
           </div>
 
           <div className="form-group">
@@ -82,6 +81,7 @@ export function Register() {
               required
               placeholder="••••••••"
             />
+            <small>Mínimo 8 caracteres</small>
           </div>
 
           <button type="submit" disabled={loading} className="auth-btn">
