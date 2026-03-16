@@ -70,5 +70,29 @@ export const api = {
 
     getById: (id: string) =>
       api.request(`/instructors/${id}`, { method: "GET" })
+  },
+
+  instructor: {
+    getStats: () =>
+      api.request("/instructor/stats", { method: "GET" }).catch(() => ({
+        total_lessons: 0,
+        rating: 0,
+        students_taught: 0,
+        name: "Instrutor",
+        city: "",
+        state: "",
+        price_per_hour: 0
+      })),
+
+    getEarnings: () =>
+      api.request("/instructor/earnings", { method: "GET" }).catch(() => ({
+        total_earnings: 0,
+        pending_earnings: 0,
+        completed_lessons: 0,
+        total_lessons: 0
+      })),
+
+    getLessons: () =>
+      api.request("/instructor/my-lessons", { method: "GET" }).catch(() => [])
   }
 }

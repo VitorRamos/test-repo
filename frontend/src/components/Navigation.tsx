@@ -41,10 +41,18 @@ export function Navigation({ user, onLogout }: NavigationProps) {
               <span className="nav-user">
                 👋 Bem-vindo, {user.email.split("@")[0]}!
               </span>
-              {user.role === "instructor" && (
-                <Link to="/instructor" className="nav-link">
-                  📊 Painel
-                </Link>
+              {user.role === "instructor" ? (
+                <>
+                  <Link to="/instructor" className="nav-link">
+                    📊 Painel
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/become-instructor" className="nav-link">
+                    ✈️ Ser Instrutor
+                  </Link>
+                </>
               )}
               <button onClick={handleLogout} className="nav-logout">
                 Sair

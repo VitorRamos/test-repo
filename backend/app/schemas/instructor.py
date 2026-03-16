@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from uuid import UUID
 
 
 class InstructorCreate(BaseModel):
@@ -13,8 +14,14 @@ class InstructorCreate(BaseModel):
 
 
 class InstructorRead(InstructorCreate):
-    id: str
-    user_id: str
+    id: UUID
+    user_id: UUID
+    name: str
+    cpf: str
+    detran_license: str
+    price_per_hour: float
+    city: str
+    state: str
     rating: float
     total_lessons: int
     created_at: datetime
