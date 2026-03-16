@@ -10,6 +10,24 @@ from backend.app.core.security import verify_password, hash_password, create_acc
 
 router = APIRouter()
 
+def create_user(db: Session, data: UserCreate, role: str = "student") -> User:
+    existing = db.query(User).filter(User.email == data.email).first()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    user = User(
+        email=data.email,
+        password_hash=hash_password(data.password),
+        role=role
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return user
+
 
 @router.post("/login", response_model=TokenResponse)
 def login(
@@ -28,25 +46,12 @@ def login(
 
     return {
         "access_token": token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "email": user.email,
+        "role": user.role
     }
 
 
 @router.post("/register")
 def register(data: UserCreate, db: Session = Depends(get_db)):
-
-    user = db.query(User).filter(User.email == data.email).first()
-    if user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    user = User(
-        email=data.email,
-        password_hash=hash_password(data.password),
-        role="student"
-    )
-
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-
-    return user
+    return create_user(db, data)

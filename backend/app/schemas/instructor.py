@@ -2,8 +2,10 @@ from pydantic import BaseModel
 from datetime import datetime
 from uuid import UUID
 
+from backend.app.schemas.user import UserCreate
 
-class InstructorCreate(BaseModel):
+
+class InstructorCreate(UserCreate):
     name: str
     cpf: str
     detran_license: str
@@ -13,7 +15,7 @@ class InstructorCreate(BaseModel):
     bio: str | None = None
 
 
-class InstructorRead(InstructorCreate):
+class InstructorRead(BaseModel):
     id: UUID
     user_id: UUID
     name: str

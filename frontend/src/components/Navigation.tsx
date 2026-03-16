@@ -49,9 +49,6 @@ export function Navigation({ user, onLogout }: NavigationProps) {
                 </>
               ) : (
                 <>
-                  <Link to="/become-instructor" className="nav-link">
-                    ✈️ Ser Instrutor
-                  </Link>
                 </>
               )}
               <button onClick={handleLogout} className="nav-logout">

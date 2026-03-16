@@ -114,3 +114,29 @@
 .auth-link a:hover {
   text-decoration: underline;
 }
+
+.role-selector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.role-btn {
+  flex: 1;
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: white;
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: all 0.2s;
+}
+
+.role-btn:hover {
+  border-color: var(--accent);
+}
+
+.role-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
