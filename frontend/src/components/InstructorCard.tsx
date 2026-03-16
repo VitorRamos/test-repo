@@ -24,20 +24,20 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
       </div>
 
       <div className="instructor-license">
-        <span className="license-label">License:</span>
+        <span className="license-label">Licença:</span>
         <span className="license-value">{instructor.detran_license}</span>
       </div>
 
       <div className="instructor-bio">
-        {instructor.bio || "No bio available"}
+        {instructor.bio || "Sem bio disponível"}
       </div>
 
       <div className="instructor-footer">
         <div className="price">
-          <span className="price-label">Price per hour:</span>
+          <span className="price-label">Preço por hora:</span>
           <span className="price-value">R$ {instructor.price_per_hour.toFixed(2)}</span>
         </div>
-        <button className="book-btn">Book Lesson</button>
+        <button className="book-btn">Agendar Aula</button>
       </div>
     </div>
   )

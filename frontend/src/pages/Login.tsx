@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
-import { useAuth } from "../hooks/useAuth"
+import { useAuth } from "../context/AuthContext"
 import "./Auth.css"
 
 export function Login() {
@@ -29,7 +29,7 @@ export function Login() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>Login</h1>
+        <h1>Entrar</h1>
 
         {error && <div className="auth-error">{error}</div>}
 
@@ -42,12 +42,12 @@ export function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="your@email.com"
+              placeholder="seu@email.com"
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">Senha</label>
             <input
               id="password"
               type="password"
@@ -59,12 +59,12 @@ export function Login() {
           </div>
 
           <button type="submit" disabled={loading} className="auth-btn">
-            {loading ? "Logging in..." : "Login"}
+            {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
 
         <p className="auth-link">
-          Don't have an account? <Link to="/register">Register here</Link>
+          Não tem uma conta? <Link to="/register">Cadastre-se aqui</Link>
         </p>
       </div>
     </div>

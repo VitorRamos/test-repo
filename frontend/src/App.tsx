@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom"
-import { useAuth } from "./hooks/useAuth"
+import { AuthProvider, useAuth } from "./context/AuthContext"
 import { Navigation } from "./components/Navigation"
 import { ProtectedRoute } from "./components/ProtectedRoute"
 import { Home } from "./pages/Home"
@@ -9,11 +9,11 @@ import { InstructorRegister } from "./pages/InstructorRegister"
 import { Dashboard } from "./pages/Dashboard"
 import "./App.css"
 
-function App() {
+function AppContent() {
   const { user, logout } = useAuth()
 
   return (
-    <BrowserRouter>
+    <>
       <Navigation user={user} onLogout={logout} />
       <Routes>
         <Route path="/" element={<Home />} />
@@ -36,6 +36,16 @@ function App() {
           }
         />
       </Routes>
+    </>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </BrowserRouter>
   )
 }

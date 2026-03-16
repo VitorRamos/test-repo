@@ -11,17 +11,17 @@ export function Dashboard({ user }: DashboardProps) {
 
   return (
     <div className="dashboard-container">
-      <h1>Instructor Dashboard</h1>
+      <h1>Painel do Instrutor</h1>
 
       <div className="dashboard-section">
-        <h2>Welcome, {user.email}</h2>
-        <p>Dashboard features coming soon:</p>
+        <h2>Bem-vindo, {user.email}</h2>
+        <p>Recursos do painel em breve:</p>
         <ul>
-          <li>View booked lessons</li>
-          <li>Confirm lesson codes</li>
-          <li>View earnings</li>
-          <li>Manage availability</li>
-          <li>View student reviews</li>
+          <li>Ver aulas agendadas</li>
+          <li>Confirmar códigos de aula</li>
+          <li>Ver ganhos</li>
+          <li>Gerenciar disponibilidade</li>
+          <li>Ver avaliações de alunos</li>
         </ul>
       </div>
     </div>

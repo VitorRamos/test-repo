@@ -24,30 +24,30 @@ export function Navigation({ user, onLogout }: NavigationProps) {
 
         <div className="nav-menu">
           <Link to="/" className="nav-link">
-            Home
+            Início
           </Link>
 
           {!user ? (
             <>
               <Link to="/login" className="nav-link">
-                Login
+                Entrar
               </Link>
               <Link to="/register" className="nav-link">
-                Register
+                Cadastrar
               </Link>
             </>
           ) : (
             <>
               <span className="nav-user">
-                {user.email} ({user.role})
+                👋 Bem-vindo, {user.email.split("@")[0]}!
               </span>
               {user.role === "instructor" && (
                 <Link to="/instructor" className="nav-link">
-                  Dashboard
+                  📊 Painel
                 </Link>
               )}
               <button onClick={handleLogout} className="nav-logout">
-                Logout
+                Sair
               </button>
             </>
           )}

@@ -36,32 +36,32 @@ export function Home() {
   return (
     <div className="home-container">
       <header className="home-hero">
-        <h1>Find Your Perfect Driving Instructor</h1>
-        <p>Book practical driving lessons with experienced instructors</p>
+        <h1>Encontre seu Instrutor de Direção Perfeito</h1>
+        <p>Reserve aulas práticas de direção com instrutores experientes</p>
       </header>
 
       <div className="home-content">
         <aside className="home-sidebar">
           <form className="search-form" onSubmit={handleSearch}>
-            <h3>Search Filters</h3>
+            <h3>Filtros de Busca</h3>
 
             <div className="form-group">
-              <label htmlFor="city">City</label>
+              <label htmlFor="city">Cidade</label>
               <input
                 id="city"
                 type="text"
-                placeholder="Enter city"
+                placeholder="Digite a cidade"
                 value={filters.city}
                 onChange={(e) => setFilters({ ...filters, city: e.target.value })}
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="price">Max Price per Hour</label>
+              <label htmlFor="price">Preço Máximo por Hora</label>
               <input
                 id="price"
                 type="number"
-                placeholder="Enter max price"
+                placeholder="Digite o preço máximo"
                 value={filters.price_max}
                 onChange={(e) =>
                   setFilters({ ...filters, price_max: e.target.value })
@@ -70,19 +70,19 @@ export function Home() {
             </div>
 
             <button type="submit" className="search-btn">
-              Search
+              Buscar
             </button>
           </form>
         </aside>
 
         <main className="home-main">
           {loading ? (
-            <p className="loading">Loading instructors...</p>
+            <p className="loading">Carregando instrutores...</p>
           ) : instructors.length === 0 ? (
-            <p className="no-results">No instructors found. Try adjusting your filters.</p>
+            <p className="no-results">Nenhum instrutor encontrado. Tente ajustar seus filtros.</p>
           ) : (
             <div className="instructors-list">
-              <h2>Available Instructors ({instructors.length})</h2>
+              <h2>Instrutores Disponíveis ({instructors.length})</h2>
               {instructors.map((instructor) => (
                 <InstructorCard
                   key={instructor.id}

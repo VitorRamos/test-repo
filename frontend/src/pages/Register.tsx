@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
-import { useAuth } from "../hooks/useAuth"
+import { useAuth } from "../context/AuthContext"
 import "./Auth.css"
 
 export function Register() {
@@ -17,12 +17,12 @@ export function Register() {
     setError("")
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match")
+      setError("As senhas não correspondem")
       return
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters")
+      setError("A senha deve ter pelo menos 8 caracteres")
       return
     }
 
@@ -41,7 +41,7 @@ export function Register() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>Create Account</h1>
+        <h1>Criar Conta</h1>
 
         {error && <div className="auth-error">{error}</div>}
 
@@ -54,12 +54,12 @@ export function Register() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="your@email.com"
+              placeholder="seu@email.com"
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">Senha</label>
             <input
               id="password"
               type="password"
@@ -69,11 +69,11 @@ export function Register() {
               placeholder="••••••••"
               minLength={8}
             />
-            <small>Minimum 8 characters</small>
+            <small>Mínimo 8 caracteres</small>
           </div>
 
           <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password</label>
+            <label htmlFor="confirmPassword">Confirmar Senha</label>
             <input
               id="confirmPassword"
               type="password"
@@ -85,12 +85,12 @@ export function Register() {
           </div>
 
           <button type="submit" disabled={loading} className="auth-btn">
-            {loading ? "Creating account..." : "Register"}
+            {loading ? "Criando conta..." : "Cadastrar"}
           </button>
         </form>
 
         <p className="auth-link">
-          Already have an account? <Link to="/login">Login here</Link>
+          Já tem uma conta? <Link to="/login">Entre aqui</Link>
         </p>
       </div>
     </div>

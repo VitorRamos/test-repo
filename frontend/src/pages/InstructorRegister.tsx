@@ -26,7 +26,7 @@ export function InstructorRegister({ user }: InstructorRegisterProps) {
     return (
       <div className="instructor-container">
         <div className="instructor-card">
-          <p>Please login first to register as an instructor.</p>
+          <p>Por favor, faça login primeiro para se registrar como instrutor.</p>
         </div>
       </div>
     )
@@ -63,14 +63,14 @@ export function InstructorRegister({ user }: InstructorRegisterProps) {
   return (
     <div className="instructor-container">
       <div className="instructor-card">
-        <h1>Register as Instructor</h1>
+        <h1>Registre-se como Instrutor</h1>
 
         {error && <div className="instructor-error">{error}</div>}
 
         <form onSubmit={handleSubmit} className="instructor-form">
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="name">Full Name *</label>
+              <label htmlFor="name">Nome Completo *</label>
               <input
                 id="name"
                 name="name"
@@ -78,7 +78,7 @@ export function InstructorRegister({ user }: InstructorRegisterProps) {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                placeholder="John Doe"
+                placeholder="João Silva"
               />
             </div>
 
@@ -98,7 +98,7 @@ export function InstructorRegister({ user }: InstructorRegisterProps) {
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="detran_license">DETRAN License *</label>
+              <label htmlFor="detran_license">Licença DETRAN *</label>
               <input
                 id="detran_license"
                 name="detran_license"
@@ -111,7 +111,7 @@ export function InstructorRegister({ user }: InstructorRegisterProps) {
             </div>
 
             <div className="form-group">
-              <label htmlFor="price_per_hour">Price per Hour (R$) *</label>
+              <label htmlFor="price_per_hour">Preço por Hora (R$) *</label>
               <input
                 id="price_per_hour"
                 name="price_per_hour"
@@ -127,7 +127,7 @@ export function InstructorRegister({ user }: InstructorRegisterProps) {
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="city">City *</label>
+              <label htmlFor="city">Cidade *</label>
               <input
                 id="city"
                 name="city"
@@ -140,7 +140,7 @@ export function InstructorRegister({ user }: InstructorRegisterProps) {
             </div>
 
             <div className="form-group">
-              <label htmlFor="state">State *</label>
+              <label htmlFor="state">Estado *</label>
               <input
                 id="state"
                 name="state"
@@ -161,13 +161,13 @@ export function InstructorRegister({ user }: InstructorRegisterProps) {
               name="bio"
               value={formData.bio}
               onChange={handleChange}
-              placeholder="Tell students about your experience..."
+              placeholder="Conte aos alunos sobre sua experiência..."
               rows={4}
             />
           </div>
 
           <button type="submit" disabled={loading} className="submit-btn">
-            {loading ? "Registering..." : "Register"}
+            {loading ? "Registrando..." : "Registrar"}
           </button>
         </form>
       </div>
