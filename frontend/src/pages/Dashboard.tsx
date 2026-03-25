@@ -33,8 +33,8 @@ export function Dashboard({ user }: DashboardProps) {
     const fetchData = async () => {
       try {
         const [statsData, earningsData] = await Promise.all([
-          api.instructor.getStats(),
-          api.instructor.getEarnings()
+          api.instructors.getStats(),
+          api.instructors.getEarnings()
         ])
         setStats(statsData)
         setEarnings(earningsData)
