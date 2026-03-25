@@ -6,6 +6,7 @@ from backend.app.models.instructor import Instructor
 from backend.app.models.lesson import Lesson
 from backend.app.models.user import User
 from backend.app.schemas.instructor import InstructorCreate, InstructorRead
+from backend.app.schemas.lesson import LessonRead
 
 router = APIRouter()
 
@@ -67,7 +68,33 @@ def get_my_lessons(
     
     # Get all lessons for this instructor
     lessons = db.query(Lesson).filter(Lesson.instructor_id == instructor.id).all()
-    return lessons
+    student_ids = {lesson.student_id for lesson in lessons}
+    students = db.query(User).filter(User.id.in_(student_ids)).all() if student_ids else []
+    student_map = {student.id: student for student in students}
+
+    lesson_reads: list[LessonRead] = []
+    for lesson in lessons:
+        student = student_map.get(lesson.student_id)
+        lesson_reads.append(
+            LessonRead(
+                id=lesson.id,
+                student_id=lesson.student_id,
+                instructor_id=lesson.instructor_id,
+                scheduled_start=lesson.scheduled_start,
+                scheduled_end=lesson.scheduled_end,
+                hour_price=lesson.hour_price,
+                total_price=lesson.total_price,
+                status=lesson.status,
+                confirmation_code=lesson.confirmation_code,
+                code_confirmed_at=lesson.code_confirmed_at,
+                code_confirmed_by_instructor=lesson.code_confirmed_by_instructor,
+                student_email=student.email if student else None,
+                instructor_name=instructor.name,
+                created_at=lesson.created_at
+            )
+        )
+
+    return lesson_reads
 
 
 @router.get("/earnings")

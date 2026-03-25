@@ -42,18 +42,32 @@ export function MyBookings({ user }: MyBookingsProps) {
       const lessons: Lesson[] = Array.isArray(data) ? (data as Lesson[]) : []
       setBookings(lessons)
 
-      const instructorIds = Array.from(
-        new Set(lessons.map((lesson) => lesson.instructor_id))
+      const fromPayload: Record<string, string> = {}
+      lessons.forEach((lesson) => {
+        if (lesson.instructor_name) {
+          fromPayload[lesson.instructor_id] = lesson.instructor_name
+        }
+      })
+
+      const missingIds = Array.from(
+        new Set(
+          lessons
+            .filter((lesson) => !lesson.instructor_name)
+            .map((lesson) => lesson.instructor_id)
+        )
       )
 
-      const entries = await Promise.all(
-        instructorIds.map(async (id) => {
-          const instructor = await api.instructors.getById(id)
-          return [id, instructor.name] as const
-        })
-      )
-
-      setInstructorNames(Object.fromEntries(entries))
+      if (missingIds.length > 0) {
+        const entries = await Promise.all(
+          missingIds.map(async (id) => {
+            const instructor = await api.instructors.getById(id)
+            return [id, instructor.name] as const
+          })
+        )
+        setInstructorNames({ ...fromPayload, ...Object.fromEntries(entries) })
+      } else {
+        setInstructorNames(fromPayload)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao carregar agendamentos")
     } finally {

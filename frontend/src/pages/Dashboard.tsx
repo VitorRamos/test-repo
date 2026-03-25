@@ -180,6 +180,9 @@ export function Dashboard({ user }: DashboardProps) {
                     <div>
                       <strong>Aula</strong> em {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
                     </div>
+                    <div>
+                      <strong>Aluno:</strong> {lesson.student_email || "Não informado"}
+                    </div>
                     <div className="booking-actions">
                       <button
                         className="action-btn"
@@ -216,6 +219,9 @@ export function Dashboard({ user }: DashboardProps) {
                     <div>
                       <strong>Data:</strong>{" "}
                       {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
+                    </div>
+                    <div>
+                      <strong>Aluno:</strong> {lesson.student_email || "Não informado"}
                     </div>
                     <div className="code-row">
                       <input
@@ -264,6 +270,9 @@ export function Dashboard({ user }: DashboardProps) {
                     <div>
                       <strong>Data:</strong>{" "}
                       {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
+                    </div>
+                    <div>
+                      <strong>Aluno:</strong> {lesson.student_email || "Não informado"}
                     </div>
                     <div>
                       <strong>Total:</strong> R$ {lesson.total_price.toFixed(2)}

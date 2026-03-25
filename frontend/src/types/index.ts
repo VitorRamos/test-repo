@@ -42,5 +42,7 @@ export interface Lesson {
   confirmation_code: string | null
   code_confirmed_at: string | null
   code_confirmed_by_instructor: boolean
+  student_email?: string | null
+  instructor_name?: string | null
   created_at: string
 }

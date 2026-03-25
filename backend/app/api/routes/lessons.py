@@ -17,6 +17,28 @@ def generate_code(length: int = 8) -> str:
     alphabet = string.ascii_uppercase + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
+def lesson_to_read(
+    lesson: Lesson,
+    student: User | None,
+    instructor: Instructor | None
+) -> LessonRead:
+    return LessonRead(
+        id=lesson.id,
+        student_id=lesson.student_id,
+        instructor_id=lesson.instructor_id,
+        scheduled_start=lesson.scheduled_start,
+        scheduled_end=lesson.scheduled_end,
+        hour_price=lesson.hour_price,
+        total_price=lesson.total_price,
+        status=lesson.status,
+        confirmation_code=lesson.confirmation_code,
+        code_confirmed_at=lesson.code_confirmed_at,
+        code_confirmed_by_instructor=lesson.code_confirmed_by_instructor,
+        student_email=student.email if student else None,
+        instructor_name=instructor.name if instructor else None,
+        created_at=lesson.created_at
+    )
+
 @router.post("/book", response_model=LessonRead)
 def book_lesson(
     data: LessonCreate,
@@ -54,7 +76,7 @@ def book_lesson(
     db.commit()
     db.refresh(lesson)
 
-    return lesson
+    return lesson_to_read(lesson, user, instructor)
 
 
 @router.get("/my-bookings", response_model=list[LessonRead])
@@ -66,7 +88,14 @@ def get_my_bookings(
         raise HTTPException(status_code=403, detail="Apenas alunos podem ver agendamentos")
 
     lessons = db.query(Lesson).filter(Lesson.student_id == user.id).all()
-    return lessons
+    instructor_ids = {lesson.instructor_id for lesson in lessons}
+    instructors = db.query(Instructor).filter(Instructor.id.in_(instructor_ids)).all() if instructor_ids else []
+    instructor_map = {inst.id: inst for inst in instructors}
+
+    return [
+        lesson_to_read(lesson, user, instructor_map.get(lesson.instructor_id))
+        for lesson in lessons
+    ]
 
 
 @router.post("/{lesson_id}/confirm", response_model=LessonRead)
@@ -98,7 +127,8 @@ def confirm_booking(
     db.commit()
     db.refresh(lesson)
 
-    return lesson
+    student = db.get(User, lesson.student_id)
+    return lesson_to_read(lesson, student, instructor)
 
 
 @router.post("/{lesson_id}/confirm-code", response_model=LessonRead)
@@ -133,7 +163,8 @@ def confirm_lesson_code(
     db.commit()
     db.refresh(lesson)
 
-    return lesson
+    student = db.get(User, lesson.student_id)
+    return lesson_to_read(lesson, student, instructor)
 
 
 @router.post("/{lesson_id}/cancel", response_model=LessonRead)
@@ -164,4 +195,6 @@ def cancel_lesson(
     db.commit()
     db.refresh(lesson)
 
-    return lesson
+    student = db.get(User, lesson.student_id)
+    instructor = db.query(Instructor).filter(Instructor.id == lesson.instructor_id).first()
+    return lesson_to_read(lesson, student, instructor)

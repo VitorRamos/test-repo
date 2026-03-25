@@ -25,6 +25,8 @@ class LessonRead(BaseModel):
     confirmation_code: str | None
     code_confirmed_at: datetime | None
     code_confirmed_by_instructor: bool
+    student_email: str | None = None
+    instructor_name: str | None = None
     created_at: datetime
 
     class Config:
