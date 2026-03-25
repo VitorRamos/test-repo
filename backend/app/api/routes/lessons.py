@@ -10,6 +10,7 @@ from backend.app.models.instructor import Instructor
 from backend.app.models.lesson import Lesson
 from backend.app.models.user import User
 from backend.app.models.review import Review
+from backend.app.models.availability import Availability
 from backend.app.schemas.lesson import LessonCreate, LessonRead, LessonConfirmCode
 
 router = APIRouter()
@@ -65,7 +66,38 @@ def book_lesson(
     if data.scheduled_start < datetime.now():
         raise HTTPException(status_code=400, detail="O horário deve ser no futuro")
 
+    # Availability check
+    weekday = data.scheduled_start.weekday()
+    availability = db.query(Availability).filter(
+        Availability.instructor_id == instructor.id,
+        Availability.weekday == weekday
+    ).all()
+    if not availability:
+        raise HTTPException(status_code=400, detail="Instrutor não disponível nesse dia")
+
+    start_time = data.scheduled_start.time()
+    end_time = (data.scheduled_start + timedelta(hours=data.duration_hours)).time()
+    in_window = False
+    for slot in availability:
+        slot_start = datetime.strptime(slot.start_time, "%H:%M").time()
+        slot_end = datetime.strptime(slot.end_time, "%H:%M").time()
+        if start_time >= slot_start and end_time <= slot_end:
+            in_window = True
+            break
+    if not in_window:
+        raise HTTPException(status_code=400, detail="Horário fora da disponibilidade do instrutor")
+
+    # Conflict check
     scheduled_end = data.scheduled_start + timedelta(hours=data.duration_hours)
+    conflicts = db.query(Lesson).filter(
+        Lesson.instructor_id == instructor.id,
+        Lesson.status != "cancelled",
+        Lesson.scheduled_start < scheduled_end,
+        Lesson.scheduled_end > data.scheduled_start
+    ).first()
+    if conflicts:
+        raise HTTPException(status_code=400, detail="Horário já reservado com outro aluno")
+
     total_price = instructor.price_per_hour * data.duration_hours
 
     lesson = Lesson(

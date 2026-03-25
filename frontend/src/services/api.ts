@@ -158,6 +158,15 @@ export const api = {
       })),
 
     getLessons: () =>
-      api.request("/instructors/my-lessons", { method: "GET" }).catch(() => [])
+      api.request("/instructors/my-lessons", { method: "GET" }).catch(() => []),
+    getAvailability: () =>
+      api.request("/instructors/availability", { method: "GET" }).catch(() => []),
+    createAvailability: (data: { weekday: number; start_time: string; end_time: string }) =>
+      api.request("/instructors/availability", {
+        method: "POST",
+        body: JSON.stringify(data)
+      }),
+    deleteAvailability: (id: string) =>
+      api.request(`/instructors/availability/${id}`, { method: "DELETE" })
   }
 }

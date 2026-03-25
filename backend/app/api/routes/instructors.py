@@ -6,7 +6,9 @@ from backend.app.models.instructor import Instructor
 from backend.app.models.lesson import Lesson
 from backend.app.models.user import User
 from backend.app.models.review import Review
+from backend.app.models.availability import Availability
 from backend.app.schemas.instructor import InstructorCreate, InstructorRead
+from backend.app.schemas.availability import AvailabilityCreate, AvailabilityRead
 from backend.app.schemas.lesson import LessonRead
 
 router = APIRouter()
@@ -185,3 +187,55 @@ def get_instructor(
     if not instructor:
         raise HTTPException(status_code=404, detail="Instrutor não encontrado")
     return instructor
+
+
+@router.get("/availability", response_model=list[AvailabilityRead])
+def get_availability(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    instructor = db.query(Instructor).filter(Instructor.user_id == user.id).first()
+    if not instructor:
+        raise HTTPException(status_code=404, detail="Instrutor não encontrado")
+    return db.query(Availability).filter(Availability.instructor_id == instructor.id).all()
+
+
+@router.post("/availability", response_model=AvailabilityRead)
+def create_availability(
+    data: AvailabilityCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    instructor = db.query(Instructor).filter(Instructor.user_id == user.id).first()
+    if not instructor:
+        raise HTTPException(status_code=404, detail="Instrutor não encontrado")
+
+    availability = Availability(
+        instructor_id=instructor.id,
+        weekday=data.weekday,
+        start_time=data.start_time,
+        end_time=data.end_time
+    )
+    db.add(availability)
+    db.commit()
+    db.refresh(availability)
+    return availability
+
+
+@router.delete("/availability/{availability_id}")
+def delete_availability(
+    availability_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    instructor = db.query(Instructor).filter(Instructor.user_id == user.id).first()
+    if not instructor:
+        raise HTTPException(status_code=404, detail="Instrutor não encontrado")
+
+    availability = db.query(Availability).filter(Availability.id == availability_id).first()
+    if not availability or availability.instructor_id != instructor.id:
+        raise HTTPException(status_code=404, detail="Disponibilidade não encontrada")
+
+    db.delete(availability)
+    db.commit()
+    return {"status": "ok"}

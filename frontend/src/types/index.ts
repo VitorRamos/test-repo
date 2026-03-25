@@ -62,3 +62,12 @@ export interface Review {
   is_public?: boolean
   created_at: string
 }
+
+export interface Availability {
+  id: string
+  instructor_id: string
+  weekday: number
+  start_time: string
+  end_time: string
+  created_at: string
+}

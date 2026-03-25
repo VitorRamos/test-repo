@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { api } from "../services/api"
-import type { Lesson, Review, User } from "../types"
+import type { Availability, Lesson, Review, User } from "../types"
 import "./Dashboard.css"
 
 interface InstructorStats {
@@ -31,6 +31,13 @@ export function Dashboard({ user }: DashboardProps) {
   const [loading, setLoading] = useState(true)
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
+  const [availability, setAvailability] = useState<Availability[]>([])
+  const [availabilityForm, setAvailabilityForm] = useState({
+    weekday: 1,
+    start_time: "08:00",
+    end_time: "12:00"
+  })
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState<string | null>(null)
   const [codeInputs, setCodeInputs] = useState<Record<string, string>>({})
@@ -44,14 +51,16 @@ export function Dashboard({ user }: DashboardProps) {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [statsData, earningsData, lessonsData] = await Promise.all([
+      const [statsData, earningsData, lessonsData, availabilityData] = await Promise.all([
         api.instructors.getStats(),
         api.instructors.getEarnings(),
-        api.instructors.getLessons()
+        api.instructors.getLessons(),
+        api.instructors.getAvailability()
       ])
       setStats(statsData)
       setEarnings(earningsData)
       setLessons(lessonsData || [])
+      setAvailability(availabilityData || [])
 
       if (statsData?.instructor_id) {
         const reviewsData = await api.reviews.getByInstructor(statsData.instructor_id)
@@ -104,6 +113,27 @@ export function Dashboard({ user }: DashboardProps) {
       setConfirmError(err instanceof Error ? err.message : "Falha ao cancelar aula")
     } finally {
       setCancelingId(null)
+    }
+  }
+
+  const handleAddAvailability = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setAvailabilityError(null)
+    try {
+      const created = await api.instructors.createAvailability(availabilityForm)
+      setAvailability((prev) => [...prev, created])
+    } catch (err) {
+      setAvailabilityError(err instanceof Error ? err.message : "Falha ao salvar disponibilidade")
+    }
+  }
+
+  const handleDeleteAvailability = async (id: string) => {
+    setAvailabilityError(null)
+    try {
+      await api.instructors.deleteAvailability(id)
+      setAvailability((prev) => prev.filter((slot) => slot.id !== id))
+    } catch (err) {
+      setAvailabilityError(err instanceof Error ? err.message : "Falha ao remover disponibilidade")
     }
   }
 
@@ -321,7 +351,82 @@ export function Dashboard({ user }: DashboardProps) {
             <button className="action-btn" onClick={() => scrollToSection("avaliacoes")}>
               ⭐ Avaliações
             </button>
+            <button className="action-btn" onClick={() => scrollToSection("disponibilidade")}>
+              🕒 Disponibilidade
+            </button>
           </div>
+        </div>
+
+        {/* Availability */}
+        <div className="dashboard-card actions-card span-2" id="disponibilidade">
+          <h3>🕒 Disponibilidade</h3>
+          {availabilityError && <p className="confirm-error">{availabilityError}</p>}
+          <form className="availability-form" onSubmit={handleAddAvailability}>
+            <label>
+              Dia da semana
+              <select
+                value={availabilityForm.weekday}
+                onChange={(e) =>
+                  setAvailabilityForm((prev) => ({
+                    ...prev,
+                    weekday: Number(e.target.value)
+                  }))
+                }
+              >
+                <option value={0}>Domingo</option>
+                <option value={1}>Segunda</option>
+                <option value={2}>Terça</option>
+                <option value={3}>Quarta</option>
+                <option value={4}>Quinta</option>
+                <option value={5}>Sexta</option>
+                <option value={6}>Sábado</option>
+              </select>
+            </label>
+            <label>
+              Início
+              <input
+                type="time"
+                value={availabilityForm.start_time}
+                onChange={(e) =>
+                  setAvailabilityForm((prev) => ({
+                    ...prev,
+                    start_time: e.target.value
+                  }))
+                }
+              />
+            </label>
+            <label>
+              Fim
+              <input
+                type="time"
+                value={availabilityForm.end_time}
+                onChange={(e) =>
+                  setAvailabilityForm((prev) => ({
+                    ...prev,
+                    end_time: e.target.value
+                  }))
+                }
+              />
+            </label>
+            <button className="action-btn" type="submit">Adicionar</button>
+          </form>
+
+          {availability.length === 0 ? (
+            <p>Nenhuma disponibilidade cadastrada.</p>
+          ) : (
+            <div className="availability-list">
+              {availability.map((slot) => (
+                <div key={slot.id} className="availability-item">
+                  <span>
+                    {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][slot.weekday]} • {slot.start_time} - {slot.end_time}
+                  </span>
+                  <button className="cancel-btn" onClick={() => handleDeleteAvailability(slot.id)}>
+                    Remover
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Reviews */}

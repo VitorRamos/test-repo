@@ -6,4 +6,8 @@
 - Bloquear confirmação de código fora do horário da aula (regra de data/horário).
 - Criar testes E2E para fluxo de agendamento, confirmação, cancelamento e validação de código.
 - Adicionar controle de disponibilidade do instrutor e evitar conflitos de horário.
+- Mostrar disponibilidade no card público do instrutor.
+- Impedir overlap entre slots de disponibilidade do próprio instrutor.
+- Permitir múltiplos horários no mesmo dia com edição inline.
 - Implementar notificações (email ou in-app) para confirmações/cancelamentos.
+- Remove unused apis (update review)

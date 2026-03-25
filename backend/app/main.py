@@ -14,6 +14,7 @@ import backend.app.models.student
 import backend.app.models.lesson
 import backend.app.models.payment
 import backend.app.models.review
+import backend.app.models.availability
 
 app = FastAPI()
 
