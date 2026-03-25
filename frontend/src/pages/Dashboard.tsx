@@ -98,6 +98,13 @@ export function Dashboard({ user }: DashboardProps) {
     }
   }
 
+  const scrollToSection = (id: string) => {
+    const target = document.getElementById(id)
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+  }
+
   if (!user || user.role !== "instructor") {
     return <div className="dashboard-container"><p>Acesso negado</p></div>
   }
@@ -142,7 +149,7 @@ export function Dashboard({ user }: DashboardProps) {
         </div>
 
         {/* Earnings Section */}
-        <div className="dashboard-card earnings-card">
+        <div className="dashboard-card earnings-card" id="ganhos">
           <h3>💰 Ganhos</h3>
           <div className="earnings-item">
             <span>Ganhos Completos:</span>
@@ -159,7 +166,7 @@ export function Dashboard({ user }: DashboardProps) {
         </div>
 
         {/* Booking Requests */}
-        <div className="dashboard-card actions-card">
+        <div className="dashboard-card actions-card" id="solicitacoes">
           <h3>📅 Solicitações de Agendamento</h3>
           {confirmError && <p className="confirm-error">{confirmError}</p>}
           {lessons.filter((lesson) => lesson.status === "pending_instructor").length === 0 ? (
@@ -196,7 +203,7 @@ export function Dashboard({ user }: DashboardProps) {
         </div>
 
         {/* Confirmed Lessons */}
-        <div className="dashboard-card actions-card">
+        <div className="dashboard-card actions-card" id="confirmadas">
           <h3>✅ Aulas Confirmadas</h3>
           {lessons.filter((lesson) => lesson.status === "confirmed").length === 0 ? (
             <p>Nenhuma aula confirmada.</p>
@@ -243,14 +250,46 @@ export function Dashboard({ user }: DashboardProps) {
           )}
         </div>
 
+        {/* Completed Lessons */}
+        <div className="dashboard-card actions-card" id="concluidas">
+          <h3>🏁 Aulas Concluídas</h3>
+          {lessons.filter((lesson) => lesson.status === "completed").length === 0 ? (
+            <p>Nenhuma aula concluída.</p>
+          ) : (
+            <div className="booking-list">
+              {lessons
+                .filter((lesson) => lesson.status === "completed")
+                .map((lesson) => (
+                  <div key={lesson.id} className="booking-item">
+                    <div>
+                      <strong>Data:</strong>{" "}
+                      {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
+                    </div>
+                    <div>
+                      <strong>Total:</strong> R$ {lesson.total_price.toFixed(2)}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+
         {/* Quick Actions */}
         <div className="dashboard-card actions-card span-2">
           <h3>⚡ Ações Rápidas</h3>
           <div className="actions-list">
-            <button className="action-btn">📅 Minhas Aulas</button>
-            <button className="action-btn">✅ Confirmar Códigos</button>
-            <button className="action-btn">⭐ Avaliações</button>
-            <button className="action-btn">⚙️ Disponibilidade</button>
+            <button className="action-btn" onClick={() => scrollToSection("solicitacoes")}>
+              📅 Solicitações
+            </button>
+            <button className="action-btn" onClick={() => scrollToSection("confirmadas")}>
+              ✅ Confirmar Códigos
+            </button>
+            <button className="action-btn" onClick={() => scrollToSection("concluidas")}>
+              🏁 Aulas Concluídas
+            </button>
+            <button className="action-btn" onClick={() => scrollToSection("ganhos")}>
+              💰 Ganhos
+            </button>
           </div>
         </div>
       </div>
