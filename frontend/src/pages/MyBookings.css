@@ -125,6 +125,11 @@
   flex-wrap: wrap;
 }
 
+.rating-comment {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
 @media (max-width: 768px) {
   .bookings-container {
     padding: 1rem;

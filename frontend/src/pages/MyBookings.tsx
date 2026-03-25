@@ -271,7 +271,14 @@ export function MyBookings({ user }: MyBookingsProps) {
                       <div className="rating-form">
                         {editingLessonId !== lesson.id ? (
                           <>
-                            <div className="rating-done">Avaliação enviada ✅</div>
+                            <div className="rating-done">
+                              Avaliação enviada ✅ (Nota: {lesson.review_rating ?? "-"})
+                            </div>
+                            {lesson.review_comment && (
+                              <div className="rating-comment">
+                                <strong>Seu comentário:</strong> {lesson.review_comment}
+                              </div>
+                            )}
                             <button
                               className="action-btn"
                               onClick={() => handleEditReview(lesson.id)}

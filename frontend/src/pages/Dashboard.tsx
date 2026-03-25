@@ -281,7 +281,17 @@ export function Dashboard({ user }: DashboardProps) {
                       {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
                     </div>
                     <div>
+                      <strong>Confirmado em:</strong>{" "}
+                      {lesson.code_confirmed_at
+                        ? new Date(lesson.code_confirmed_at).toLocaleString("pt-BR")
+                        : "Não informado"}
+                    </div>
+                    <div>
                       <strong>Aluno:</strong> {lesson.student_email || "Não informado"}
+                    </div>
+                    <div>
+                      <strong>Nota:</strong>{" "}
+                      {lesson.review_rating ? lesson.review_rating : "Sem avaliação"}
                     </div>
                     <div>
                       <strong>Total:</strong> R$ {lesson.total_price.toFixed(2)}

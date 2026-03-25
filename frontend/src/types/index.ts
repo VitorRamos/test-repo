@@ -45,6 +45,9 @@ export interface Lesson {
   student_email?: string | null
   instructor_name?: string | null
   has_review?: boolean
+  review_rating?: number | null
+  review_comment?: string | null
+  review_is_public?: boolean | null
   created_at: string
 }
 

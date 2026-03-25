@@ -22,7 +22,7 @@ def lesson_to_read(
     lesson: Lesson,
     student: User | None,
     instructor: Instructor | None,
-    has_review: bool = False
+    review: Review | None = None
 ) -> LessonRead:
     return LessonRead(
         id=lesson.id,
@@ -38,7 +38,10 @@ def lesson_to_read(
         code_confirmed_by_instructor=lesson.code_confirmed_by_instructor,
         student_email=student.email if student else None,
         instructor_name=instructor.name if instructor else None,
-        has_review=has_review,
+        has_review=review is not None,
+        review_rating=review.rating if review else None,
+        review_comment=review.comment if review else None,
+        review_is_public=review.is_public if review else None,
         created_at=lesson.created_at
     )
 
@@ -93,7 +96,7 @@ def get_my_bookings(
     lessons = db.query(Lesson).filter(Lesson.student_id == user.id).all()
     lesson_ids = {lesson.id for lesson in lessons}
     reviews = db.query(Review).filter(Review.lesson_id.in_(lesson_ids)).all() if lesson_ids else []
-    reviewed_ids = {review.lesson_id for review in reviews}
+    review_map = {review.lesson_id: review for review in reviews}
     instructor_ids = {lesson.instructor_id for lesson in lessons}
     instructors = db.query(Instructor).filter(Instructor.id.in_(instructor_ids)).all() if instructor_ids else []
     instructor_map = {inst.id: inst for inst in instructors}
@@ -103,7 +106,7 @@ def get_my_bookings(
             lesson,
             user,
             instructor_map.get(lesson.instructor_id),
-            has_review=lesson.id in reviewed_ids
+            review=review_map.get(lesson.id)
         )
         for lesson in lessons
     ]

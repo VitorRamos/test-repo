@@ -28,6 +28,9 @@ class LessonRead(BaseModel):
     student_email: str | None = None
     instructor_name: str | None = None
     has_review: bool = False
+    review_rating: int | None = None
+    review_comment: str | None = None
+    review_is_public: bool | None = None
     created_at: datetime
 
     class Config:
