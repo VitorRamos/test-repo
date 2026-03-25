@@ -27,6 +27,7 @@ class LessonRead(BaseModel):
     code_confirmed_by_instructor: bool
     student_email: str | None = None
     instructor_name: str | None = None
+    has_review: bool = False
     created_at: datetime
 
     class Config:

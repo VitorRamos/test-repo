@@ -5,6 +5,7 @@ from backend.app.api.deps import get_db, get_current_user
 from backend.app.models.instructor import Instructor
 from backend.app.models.lesson import Lesson
 from backend.app.models.user import User
+from backend.app.models.review import Review
 from backend.app.schemas.instructor import InstructorCreate, InstructorRead
 from backend.app.schemas.lesson import LessonRead
 
@@ -72,6 +73,10 @@ def get_my_lessons(
     students = db.query(User).filter(User.id.in_(student_ids)).all() if student_ids else []
     student_map = {student.id: student for student in students}
 
+    lesson_ids = {lesson.id for lesson in lessons}
+    reviews = db.query(Review).filter(Review.lesson_id.in_(lesson_ids)).all() if lesson_ids else []
+    reviewed_ids = {review.lesson_id for review in reviews}
+
     lesson_reads: list[LessonRead] = []
     for lesson in lessons:
         student = student_map.get(lesson.student_id)
@@ -90,6 +95,7 @@ def get_my_lessons(
                 code_confirmed_by_instructor=lesson.code_confirmed_by_instructor,
                 student_email=student.email if student else None,
                 instructor_name=instructor.name,
+                has_review=lesson.id in reviewed_ids,
                 created_at=lesson.created_at
             )
         )

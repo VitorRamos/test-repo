@@ -194,6 +194,41 @@ def get_confirmation_code_from_my_bookings(driver):
             return line.split("Código da aula:")[-1].strip()
     return None
 
+
+def submit_review_for_first_completed(driver):
+    go_to_my_bookings(driver)
+    cards = driver.find_elements(By.CLASS_NAME, "booking-card")
+    assert len(cards) > 0
+    target = None
+    for card in cards:
+        if "Concluída" in card.text or "Aulas Concluídas" in card.text:
+            target = card
+            break
+    if target is None:
+        target = cards[0]
+
+    rating_inputs = target.find_elements(By.CSS_SELECTOR, "input[type='number']")
+    textareas = target.find_elements(By.TAG_NAME, "textarea")
+    buttons = target.find_elements(By.TAG_NAME, "button")
+
+    assert rating_inputs
+    rating_inputs[0].clear()
+    rating_inputs[0].send_keys("5")
+
+    if textareas:
+        textareas[0].clear()
+        textareas[0].send_keys("Ótima aula!")
+
+    submit_button = None
+    for button in buttons:
+        if "Enviar avaliação" in button.text:
+            submit_button = button
+            break
+
+    assert submit_button is not None
+    submit_button.click()
+    time.sleep(DELAY_SHORT)
+
 def validate_code_for_first_confirmed(driver, code):
     driver.find_element(By.LINK_TEXT, "Painel").click()
     time.sleep(DELAY_SHORT)
@@ -403,6 +438,15 @@ def test_booking_flow():
         body = get_body(driver)
         assert "Aulas Concluídas" in body
         print("✅ Booking code validated successfully")
+
+        logout(driver)
+
+        # Student submits review
+        login(driver, student_email, password)
+        submit_review_for_first_completed(driver)
+        body = get_body(driver)
+        assert "Avaliação enviada" in body or "Avaliação enviada ✅" in body
+        print("✅ Review submitted successfully")
 
     finally:
         close_driver(driver)

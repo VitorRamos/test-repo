@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
-from backend.app.api.routes import instructors, auth, lessons
+from backend.app.api.routes import instructors, auth, lessons, reviews
 from backend.app.db.session import engine
 from backend.app.db.base import Base
 
@@ -13,6 +13,7 @@ import backend.app.models.instructor
 import backend.app.models.student
 import backend.app.models.lesson
 import backend.app.models.payment
+import backend.app.models.review
 
 app = FastAPI()
 
@@ -35,6 +36,12 @@ app.include_router(
     lessons.router,
     prefix="/api/lessons",
     tags=["lessons"]
+)
+
+app.include_router(
+    reviews.router,
+    prefix="/api/reviews",
+    tags=["reviews"]
 )
 
 @app.get("/api/health")

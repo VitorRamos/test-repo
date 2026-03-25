@@ -9,6 +9,7 @@ from backend.app.api.deps import get_db, get_current_user
 from backend.app.models.instructor import Instructor
 from backend.app.models.lesson import Lesson
 from backend.app.models.user import User
+from backend.app.models.review import Review
 from backend.app.schemas.lesson import LessonCreate, LessonRead, LessonConfirmCode
 
 router = APIRouter()
@@ -20,7 +21,8 @@ def generate_code(length: int = 8) -> str:
 def lesson_to_read(
     lesson: Lesson,
     student: User | None,
-    instructor: Instructor | None
+    instructor: Instructor | None,
+    has_review: bool = False
 ) -> LessonRead:
     return LessonRead(
         id=lesson.id,
@@ -36,6 +38,7 @@ def lesson_to_read(
         code_confirmed_by_instructor=lesson.code_confirmed_by_instructor,
         student_email=student.email if student else None,
         instructor_name=instructor.name if instructor else None,
+        has_review=has_review,
         created_at=lesson.created_at
     )
 
@@ -88,12 +91,20 @@ def get_my_bookings(
         raise HTTPException(status_code=403, detail="Apenas alunos podem ver agendamentos")
 
     lessons = db.query(Lesson).filter(Lesson.student_id == user.id).all()
+    lesson_ids = {lesson.id for lesson in lessons}
+    reviews = db.query(Review).filter(Review.lesson_id.in_(lesson_ids)).all() if lesson_ids else []
+    reviewed_ids = {review.lesson_id for review in reviews}
     instructor_ids = {lesson.instructor_id for lesson in lessons}
     instructors = db.query(Instructor).filter(Instructor.id.in_(instructor_ids)).all() if instructor_ids else []
     instructor_map = {inst.id: inst for inst in instructors}
 
     return [
-        lesson_to_read(lesson, user, instructor_map.get(lesson.instructor_id))
+        lesson_to_read(
+            lesson,
+            user,
+            instructor_map.get(lesson.instructor_id),
+            has_review=lesson.id in reviewed_ids
+        )
         for lesson in lessons
     ]
 

@@ -96,6 +96,13 @@ export const api = {
         method: "POST"
       })
   },
+  reviews: {
+    create: (data: { lesson_id: string; rating: number; comment?: string }) =>
+      api.request("/reviews/", {
+        method: "POST",
+        body: JSON.stringify(data)
+      })
+  },
 
   instructors: {
     become: (data: any) =>

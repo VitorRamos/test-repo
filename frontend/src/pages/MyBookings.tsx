@@ -22,6 +22,9 @@ export function MyBookings({ user }: MyBookingsProps) {
   const [instructorNames, setInstructorNames] = useState<Record<string, string>>({})
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [ratingInputs, setRatingInputs] = useState<Record<string, number>>({})
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
+  const [ratingSubmitting, setRatingSubmitting] = useState<string | null>(null)
 
   const sortedBookings = useMemo(() => {
     return [...bookings].sort(
@@ -90,6 +93,23 @@ export function MyBookings({ user }: MyBookingsProps) {
     }
   }
 
+  const handleSubmitRating = async (lessonId: string) => {
+    setRatingSubmitting(lessonId)
+    setError(null)
+    setActionMessage(null)
+    try {
+      const rating = ratingInputs[lessonId] || 5
+      const comment = commentInputs[lessonId]?.trim() || undefined
+      await api.reviews.create({ lesson_id: lessonId, rating, comment })
+      setActionMessage("Avaliação enviada com sucesso.")
+      await loadBookings()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao enviar avaliação")
+    } finally {
+      setRatingSubmitting(null)
+    }
+  }
+
   if (!user || user.role !== "student") {
     return <div className="bookings-container"><p>Acesso negado</p></div>
   }
@@ -153,6 +173,50 @@ export function MyBookings({ user }: MyBookingsProps) {
                       >
                         {cancellingId === lesson.id ? "Cancelando..." : "Cancelar agendamento"}
                       </button>
+                    )}
+
+                    {lesson.status === "completed" && !lesson.has_review && (
+                      <div className="rating-form">
+                        <label>
+                          Avaliação (1-5)
+                          <input
+                            type="number"
+                            min={1}
+                            max={5}
+                            value={ratingInputs[lesson.id] || 5}
+                            onChange={(e) =>
+                              setRatingInputs((prev) => ({
+                                ...prev,
+                                [lesson.id]: Number(e.target.value)
+                              }))
+                            }
+                          />
+                        </label>
+                        <label>
+                          Comentário (opcional)
+                          <textarea
+                            rows={2}
+                            value={commentInputs[lesson.id] || ""}
+                            onChange={(e) =>
+                              setCommentInputs((prev) => ({
+                                ...prev,
+                                [lesson.id]: e.target.value
+                              }))
+                            }
+                          />
+                        </label>
+                        <button
+                          className="action-btn"
+                          onClick={() => handleSubmitRating(lesson.id)}
+                          disabled={ratingSubmitting === lesson.id}
+                        >
+                          {ratingSubmitting === lesson.id ? "Enviando..." : "Enviar avaliação"}
+                        </button>
+                      </div>
+                    )}
+
+                    {lesson.status === "completed" && lesson.has_review && (
+                      <div className="rating-done">Avaliação enviada ✅</div>
                     )}
                   </div>
                 )
