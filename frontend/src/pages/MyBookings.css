@@ -57,6 +57,30 @@
   border-radius: 6px;
 }
 
+.booking-success {
+  color: #166534;
+  background: #dcfce7;
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+}
+
+.cancel-btn {
+  margin-top: 1rem;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: var(--sans);
+  transition: all 0.2s ease-in-out;
+}
+
+.cancel-btn:hover {
+  background: #fecaca;
+}
+
 @media (max-width: 768px) {
   .bookings-container {
     padding: 1rem;

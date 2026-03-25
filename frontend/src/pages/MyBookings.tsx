@@ -20,6 +20,8 @@ export function MyBookings({ user }: MyBookingsProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [instructorNames, setInstructorNames] = useState<Record<string, string>>({})
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
 
   const sortedBookings = useMemo(() => {
     return [...bookings].sort(
@@ -34,6 +36,7 @@ export function MyBookings({ user }: MyBookingsProps) {
   const loadBookings = async () => {
     setLoading(true)
     setError(null)
+    setActionMessage(null)
     try {
       const data = await api.lessons.myBookings()
       const lessons: Lesson[] = Array.isArray(data) ? (data as Lesson[]) : []
@@ -58,6 +61,21 @@ export function MyBookings({ user }: MyBookingsProps) {
     }
   }
 
+  const handleCancel = async (lessonId: string) => {
+    setCancellingId(lessonId)
+    setError(null)
+    setActionMessage(null)
+    try {
+      await api.lessons.cancelLesson(lessonId)
+      setActionMessage("Agendamento cancelado com sucesso.")
+      await loadBookings()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao cancelar agendamento")
+    } finally {
+      setCancellingId(null)
+    }
+  }
+
   if (!user || user.role !== "student") {
     return <div className="bookings-container"><p>Acesso negado</p></div>
   }
@@ -68,44 +86,66 @@ export function MyBookings({ user }: MyBookingsProps) {
 
       {loading ? (
         <p>Carregando agendamentos...</p>
-      ) : error ? (
-        <p className="booking-error">{error}</p>
-      ) : sortedBookings.length === 0 ? (
-        <p>Você ainda não possui agendamentos.</p>
       ) : (
-        <div className="bookings-list">
-          {sortedBookings.map((lesson) => {
-            const start = new Date(lesson.scheduled_start)
-            const end = new Date(lesson.scheduled_end)
-            const durationHours = Math.round((end.getTime() - start.getTime()) / 36e5 * 10) / 10
+        <>
+          {error && <p className="booking-error">{error}</p>}
+          {actionMessage && <p className="booking-success">{actionMessage}</p>}
+          {sortedBookings.length === 0 ? (
+            <p>Você ainda não possui agendamentos.</p>
+          ) : (
+            <div className="bookings-list">
+              {sortedBookings.map((lesson) => {
+                const start = new Date(lesson.scheduled_start)
+                const end = new Date(lesson.scheduled_end)
+                const durationHours =
+                  Math.round((end.getTime() - start.getTime()) / 36e5 * 10) / 10
 
-            return (
-              <div key={lesson.id} className="booking-card">
-                <div className="booking-header">
-                  <div>
-                    <strong>Instrutor:</strong>{" "}
-                    {instructorNames[lesson.instructor_id] || "Carregando..."}
-                  </div>
-                  <span className="booking-status">
-                    {statusLabels[lesson.status] || lesson.status}
-                  </span>
-                </div>
+                return (
+                  <div key={lesson.id} className="booking-card">
+                    <div className="booking-header">
+                      <div>
+                        <strong>Instrutor:</strong>{" "}
+                        {instructorNames[lesson.instructor_id] || "Carregando..."}
+                      </div>
+                      <span className="booking-status">
+                        {statusLabels[lesson.status] || lesson.status}
+                      </span>
+                    </div>
 
-                <div className="booking-info">
-                  <div>
-                    <strong>Data:</strong> {start.toLocaleString("pt-BR")}
+                    <div className="booking-info">
+                      <div>
+                        <strong>Data:</strong> {start.toLocaleString("pt-BR")}
+                      </div>
+                      <div>
+                        <strong>Duração:</strong> {durationHours}h
+                      </div>
+                      <div>
+                        <strong>Total:</strong> R$ {lesson.total_price.toFixed(2)}
+                      </div>
+                      {lesson.confirmation_code && lesson.status === "confirmed" && (
+                        <div>
+                          <strong>Código da aula:</strong> {lesson.confirmation_code}
+                        </div>
+                      )}
+                    </div>
+
+                    {(lesson.status === "pending_instructor" ||
+                      lesson.status === "confirmed" ||
+                      lesson.status === "pending_payment") && (
+                      <button
+                        className="cancel-btn"
+                        onClick={() => handleCancel(lesson.id)}
+                        disabled={cancellingId === lesson.id}
+                      >
+                        {cancellingId === lesson.id ? "Cancelando..." : "Cancelar agendamento"}
+                      </button>
+                    )}
                   </div>
-                  <div>
-                    <strong>Duração:</strong> {durationHours}h
-                  </div>
-                  <div>
-                    <strong>Total:</strong> R$ {lesson.total_price.toFixed(2)}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+                )
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

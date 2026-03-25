@@ -13,8 +13,12 @@
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2rem;
+}
+
+.span-2 {
+  grid-column: span 2;
 }
 
 .dashboard-card {
@@ -135,6 +139,27 @@
   background: var(--code-bg);
 }
 
+.booking-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.code-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.code-row input {
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-family: var(--sans);
+  min-width: 180px;
+}
+
 .confirm-error {
   margin-bottom: 1rem;
   color: #991b1b;
@@ -163,9 +188,32 @@
   box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
 }
 
+.cancel-btn {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  padding: 0.85rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: var(--sans);
+}
+
+.cancel-btn:hover {
+  background: #fecaca;
+}
+
 @media (max-width: 768px) {
   .dashboard-container {
     padding: 1rem;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .span-2 {
+    grid-column: span 1;
   }
 
   .dashboard-container h1 {

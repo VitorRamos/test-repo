@@ -19,9 +19,17 @@ export const api = {
       headers
     })
 
-    if (!response.ok) {
-      const error = await response.json()
+    const text = await response.text()
+    const parseJson = (value: string) => {
+      try {
+        return value ? JSON.parse(value) : null
+      } catch {
+        return null
+      }
+    }
 
+    if (!response.ok) {
+      const error = parseJson(text)
       let message = "Falha na requisição"
 
       if (error?.detail) {
@@ -30,13 +38,14 @@ export const api = {
         } else {
           message = error.detail
         }
+      } else if (text) {
+        message = text
       }
 
       throw new Error(message)
     }
 
-    const text = await response.text()
-    return text ? JSON.parse(text) : null
+    return parseJson(text)
   },
 
   auth: {
@@ -75,6 +84,15 @@ export const api = {
       api.request("/lessons/my-bookings", { method: "GET" }).catch(() => []),
     confirmBooking: (lessonId: string) =>
       api.request(`/lessons/${lessonId}/confirm`, {
+        method: "POST"
+      }),
+    confirmCode: (lessonId: string, code: string) =>
+      api.request(`/lessons/${lessonId}/confirm-code`, {
+        method: "POST",
+        body: JSON.stringify({ code })
+      }),
+    cancelLesson: (lessonId: string) =>
+      api.request(`/lessons/${lessonId}/cancel`, {
         method: "POST"
       })
   },

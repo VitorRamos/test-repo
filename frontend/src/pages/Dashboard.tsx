@@ -31,6 +31,9 @@ export function Dashboard({ user }: DashboardProps) {
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState<string | null>(null)
+  const [codeInputs, setCodeInputs] = useState<Record<string, string>>({})
+  const [validatingId, setValidatingId] = useState<string | null>(null)
+  const [cancelingId, setCancelingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchData()
@@ -67,6 +70,34 @@ export function Dashboard({ user }: DashboardProps) {
     }
   }
 
+  const handleValidateCode = async (lessonId: string) => {
+    setValidatingId(lessonId)
+    setConfirmError(null)
+    try {
+      const code = codeInputs[lessonId] || ""
+      await api.lessons.confirmCode(lessonId, code)
+      setCodeInputs((prev) => ({ ...prev, [lessonId]: "" }))
+      await fetchData()
+    } catch (err) {
+      setConfirmError(err instanceof Error ? err.message : "Falha ao validar código")
+    } finally {
+      setValidatingId(null)
+    }
+  }
+
+  const handleCancel = async (lessonId: string) => {
+    setCancelingId(lessonId)
+    setConfirmError(null)
+    try {
+      await api.lessons.cancelLesson(lessonId)
+      await fetchData()
+    } catch (err) {
+      setConfirmError(err instanceof Error ? err.message : "Falha ao cancelar aula")
+    } finally {
+      setCancelingId(null)
+    }
+  }
+
   if (!user || user.role !== "instructor") {
     return <div className="dashboard-container"><p>Acesso negado</p></div>
   }
@@ -81,14 +112,14 @@ export function Dashboard({ user }: DashboardProps) {
 
       <div className="dashboard-grid">
         {/* Welcome Section */}
-        <div className="dashboard-card welcome-card">
+        <div className="dashboard-card welcome-card span-2">
           <h2>Bem-vindo, {stats?.name}!</h2>
           <p className="location">📍 {stats?.city}, {stats?.state}</p>
           <p className="price">R$ {stats?.price_per_hour.toFixed(2)}/hora</p>
         </div>
 
         {/* Stats Grid */}
-        <div className="stats-grid">
+        <div className="stats-grid span-2">
           <div className="stat-card">
             <div className="stat-number">{stats?.total_lessons}</div>
             <div className="stat-label">Aulas Totais</div>
@@ -142,13 +173,70 @@ export function Dashboard({ user }: DashboardProps) {
                     <div>
                       <strong>Aula</strong> em {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
                     </div>
-                    <button
-                      className="action-btn"
-                      onClick={() => handleConfirm(lesson.id)}
-                      disabled={confirmingId === lesson.id}
-                    >
-                      {confirmingId === lesson.id ? "Confirmando..." : "Confirmar"}
-                    </button>
+                    <div className="booking-actions">
+                      <button
+                        className="action-btn"
+                        onClick={() => handleConfirm(lesson.id)}
+                        disabled={confirmingId === lesson.id}
+                      >
+                        {confirmingId === lesson.id ? "Confirmando..." : "Confirmar"}
+                      </button>
+                      <button
+                        className="cancel-btn"
+                        onClick={() => handleCancel(lesson.id)}
+                        disabled={cancelingId === lesson.id}
+                      >
+                        {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+
+        {/* Confirmed Lessons */}
+        <div className="dashboard-card actions-card">
+          <h3>✅ Aulas Confirmadas</h3>
+          {lessons.filter((lesson) => lesson.status === "confirmed").length === 0 ? (
+            <p>Nenhuma aula confirmada.</p>
+          ) : (
+            <div className="booking-list">
+              {lessons
+                .filter((lesson) => lesson.status === "confirmed")
+                .map((lesson) => (
+                  <div key={lesson.id} className="booking-item">
+                    <div>
+                      <strong>Data:</strong>{" "}
+                      {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
+                    </div>
+                    <div className="code-row">
+                      <input
+                        type="text"
+                        placeholder="Código do aluno"
+                        value={codeInputs[lesson.id] || ""}
+                        onChange={(e) =>
+                          setCodeInputs((prev) => ({
+                            ...prev,
+                            [lesson.id]: e.target.value
+                          }))
+                        }
+                      />
+                      <button
+                        className="action-btn"
+                        onClick={() => handleValidateCode(lesson.id)}
+                        disabled={validatingId === lesson.id}
+                      >
+                        {validatingId === lesson.id ? "Validando..." : "Validar Código"}
+                      </button>
+                      <button
+                        className="cancel-btn"
+                        onClick={() => handleCancel(lesson.id)}
+                        disabled={cancelingId === lesson.id}
+                      >
+                        {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
+                      </button>
+                    </div>
                   </div>
                 ))}
             </div>
@@ -156,7 +244,7 @@ export function Dashboard({ user }: DashboardProps) {
         </div>
 
         {/* Quick Actions */}
-        <div className="dashboard-card actions-card">
+        <div className="dashboard-card actions-card span-2">
           <h3>⚡ Ações Rápidas</h3>
           <div className="actions-list">
             <button className="action-btn">📅 Minhas Aulas</button>

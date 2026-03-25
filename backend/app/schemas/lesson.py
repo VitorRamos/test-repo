@@ -9,6 +9,10 @@ class LessonCreate(BaseModel):
     duration_hours: float = Field(gt=0)
 
 
+class LessonConfirmCode(BaseModel):
+    code: str
+
+
 class LessonRead(BaseModel):
     id: UUID
     student_id: UUID
@@ -18,6 +22,9 @@ class LessonRead(BaseModel):
     hour_price: float
     total_price: float
     status: str
+    confirmation_code: str | None
+    code_confirmed_at: datetime | None
+    code_confirmed_by_instructor: bool
     created_at: datetime
 
     class Config:

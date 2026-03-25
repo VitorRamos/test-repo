@@ -121,7 +121,10 @@ def get_instructor_stats(
             "students_taught": 0
         }
     
-    lessons = db.query(Lesson).filter(Lesson.instructor_id == instructor.id).all()
+    lessons = db.query(Lesson).filter(
+        Lesson.instructor_id == instructor.id,
+        Lesson.status.in_(["confirmed", "completed"])
+    ).all()
     unique_students = len(set(lesson.student_id for lesson in lessons))
     
     return {

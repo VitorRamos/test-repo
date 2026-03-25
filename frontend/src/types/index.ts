@@ -39,5 +39,8 @@ export interface Lesson {
   hour_price: number
   total_price: number
   status: string
+  confirmation_code: string | null
+  code_confirmed_at: string | null
+  code_confirmed_by_instructor: boolean
   created_at: string
 }

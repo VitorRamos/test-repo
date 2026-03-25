@@ -17,4 +17,7 @@ class Lesson(Base):
     hour_price: Mapped[float]
     total_price: Mapped[float]
     status: Mapped[str] = mapped_column(default="pending_payment")
+    confirmation_code: Mapped[str | None] = mapped_column(nullable=True)
+    code_confirmed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    code_confirmed_by_instructor: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
