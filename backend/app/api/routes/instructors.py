@@ -18,7 +18,7 @@ def become_instructor(
 ):
     instructor = db.query(Instructor).filter(Instructor.user_id == user.id).first()
     if instructor:
-        raise HTTPException(status_code=400, detail="User is already an instructor")
+        raise HTTPException(status_code=400, detail="Usuário já é instrutor")
 
     instructor = Instructor(
         **data.model_dump(exclude={"email", "password"}),
@@ -93,7 +93,7 @@ def get_earnings(
     
     pending_lessons = db.query(Lesson).filter(
         Lesson.instructor_id == instructor.id,
-        Lesson.status.in_(["confirmed", "pending_payment"])
+        Lesson.status.in_(["pending_instructor", "confirmed", "pending_payment"])
     ).all()
     
     total_earnings = sum(lesson.total_price for lesson in completed_lessons) * 0.8  # 20% fee
@@ -142,5 +142,5 @@ def get_instructor(
 ):
     instructor = db.query(Instructor).filter(Instructor.id == instructor_id).first()
     if not instructor:
-        raise HTTPException(status_code=404, detail="Instructor not found")
+        raise HTTPException(status_code=404, detail="Instrutor não encontrado")
     return instructor

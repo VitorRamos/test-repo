@@ -20,7 +20,7 @@ export function Login() {
       await login(email, password)
       navigate("/")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed")
+      setError(err instanceof Error ? err.message : "Falha no login")
     } finally {
       setLoading(false)
     }

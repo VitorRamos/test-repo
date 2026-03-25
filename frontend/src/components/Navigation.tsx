@@ -29,7 +29,7 @@ export function Navigation({ user, onLogout }: NavigationProps) {
 
           {user && (
             <span className="nav-user">
-              👋 Bem-Vindo {username}
+              👋 Bem-vindo {username}
             </span>
           )}
         </div>
@@ -53,12 +53,17 @@ export function Navigation({ user, onLogout }: NavigationProps) {
               )}
 
               {user.role === "student" && (
-                <Link
-                  to="/become-instructor"
-                  className="nav-link nav-link-subtle"
-                >
-                  Tornar-se instrutor
-                </Link>
+                <>
+                  <Link to="/my-bookings" className="nav-link">
+                    Minhas Aulas
+                  </Link>
+                  <Link
+                    to="/become-instructor"
+                    className="nav-link nav-link-subtle"
+                  >
+                    Tornar-se instrutor
+                  </Link>
+                </>
               )}
 
               <button onClick={handleLogout} className="nav-logout">

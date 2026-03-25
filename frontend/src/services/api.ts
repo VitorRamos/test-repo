@@ -22,7 +22,7 @@ export const api = {
     if (!response.ok) {
       const error = await response.json()
 
-      let message = "Request failed"
+      let message = "Falha na requisição"
 
       if (error?.detail) {
         if (Array.isArray(error.detail)) {
@@ -63,6 +63,20 @@ export const api = {
         body: formData.toString()
       })
     }
+  },
+
+  lessons: {
+    book: (data: { instructor_id: string; scheduled_start: string; duration_hours: number }) =>
+      api.request("/lessons/book", {
+        method: "POST",
+        body: JSON.stringify(data)
+      }),
+    myBookings: () =>
+      api.request("/lessons/my-bookings", { method: "GET" }).catch(() => []),
+    confirmBooking: (lessonId: string) =>
+      api.request(`/lessons/${lessonId}/confirm`, {
+        method: "POST"
+      })
   },
 
   instructors: {

@@ -18,10 +18,10 @@ def login(
     user = db.query(User).filter(User.email == form_data.username).first()
 
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
     if not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
     token = create_access_token(str(user.id))
 
@@ -38,7 +38,7 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == data.email).first()
 
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
 
     user = User(
         email=data.email,

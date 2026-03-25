@@ -29,3 +29,15 @@ export interface TokenResponse {
   access_token: string
   token_type: string
 }
+
+export interface Lesson {
+  id: string
+  student_id: string
+  instructor_id: string
+  scheduled_start: string
+  scheduled_end: string
+  hour_price: number
+  total_price: number
+  status: string
+  created_at: string
+}

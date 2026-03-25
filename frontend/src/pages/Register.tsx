@@ -46,7 +46,7 @@ export function Register() {
       navigate("/login")
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed")
+      setError(err instanceof Error ? err.message : "Falha no cadastro")
     } finally {
       setLoading(false)
     }

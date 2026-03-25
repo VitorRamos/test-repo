@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.auth.register(email, password)
       return response
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed")
+      setError(err instanceof Error ? err.message : "Falha no cadastro")
       throw err
     } finally {
       setLoading(false)
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return response
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed")
+      setError(err instanceof Error ? err.message : "Falha no login")
       throw err
     } finally {
       setLoading(false)
