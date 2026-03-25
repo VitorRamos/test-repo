@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import type { Instructor } from "../types"
+import type { Instructor, Review } from "../types"
 import { api } from "../services/api"
 import { useAuth } from "../context/AuthContext"
 import "./InstructorCard.css"
@@ -19,6 +19,9 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [showReviews, setShowReviews] = useState(false)
+  const [loadingReviews, setLoadingReviews] = useState(false)
 
   const handleOpenForm = () => {
     setMessage(null)
@@ -68,6 +71,23 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
     }
   }
 
+  const toggleReviews = async () => {
+    if (showReviews) {
+      setShowReviews(false)
+      return
+    }
+    setLoadingReviews(true)
+    try {
+      const data = await api.reviews.getPublicByInstructor(instructor.id)
+      setReviews(data || [])
+      setShowReviews(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao carregar avaliações.")
+    } finally {
+      setLoadingReviews(false)
+    }
+  }
+
   return (
     <div className="instructor-card">
       <div className="instructor-header">
@@ -97,9 +117,14 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
           <span className="price-label">Preço por hora:</span>
           <span className="price-value">R$ {instructor.price_per_hour.toFixed(2)}</span>
         </div>
-        <button className="book-btn" onClick={handleOpenForm}>
-          Agendar Aula
-        </button>
+        <div className="card-actions">
+          <button className="book-btn" onClick={handleOpenForm}>
+            Agendar Aula
+          </button>
+          <button className="secondary-btn" onClick={toggleReviews} disabled={loadingReviews}>
+            {loadingReviews ? "Carregando..." : showReviews ? "Ocultar Avaliações" : "Ver Avaliações"}
+          </button>
+        </div>
       </div>
 
       {error && <div className="booking-error">{error}</div>}
@@ -134,6 +159,27 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
             {submitting ? "Agendando..." : "Confirmar Agendamento"}
           </button>
         </form>
+      )}
+
+      {showReviews && (
+        <div className="reviews-panel">
+          <h4>Avaliações Públicas</h4>
+          {reviews.length === 0 ? (
+            <p>Nenhuma avaliação pública ainda.</p>
+          ) : (
+            <div className="reviews-list">
+              {reviews.slice(0, 3).map((review) => (
+                <div key={review.id} className="review-item">
+                  <div className="review-header">
+                    <span>⭐ {review.rating.toFixed(1)}</span>
+                    <span>{new Date(review.created_at).toLocaleDateString("pt-BR")}</span>
+                  </div>
+                  {review.comment && <p>{review.comment}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

@@ -118,6 +118,61 @@
   box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
 }
 
+.card-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.secondary-btn {
+  background: #f1f5f9;
+  color: var(--text-h);
+  border: 1px solid var(--border);
+  padding: 0.7rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: var(--sans);
+  font-size: 0.95rem;
+}
+
+.secondary-btn:hover {
+  background: #e2e8f0;
+}
+
+.reviews-panel {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.reviews-panel h4 {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-h);
+}
+
+.reviews-panel .reviews-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.reviews-panel .review-item {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  background: white;
+}
+
+.reviews-panel .review-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  color: var(--text-h);
+  margin-bottom: 0.4rem;
+}
+
 .booking-form {
   margin-top: 1rem;
   padding-top: 1rem;
@@ -165,6 +220,10 @@
   }
 
   .book-btn {
+    width: 100%;
+  }
+
+  .secondary-btn {
     width: 100%;
   }
 }

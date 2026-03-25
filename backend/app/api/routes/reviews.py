@@ -158,3 +158,29 @@ def get_reviews_for_instructor(
         )
         for review in reviews
     ]
+
+
+@router.get("/public/{instructor_id}", response_model=list[ReviewRead])
+def get_public_reviews_for_instructor(
+    instructor_id: str,
+    db: Session = Depends(get_db)
+):
+    reviews = db.query(Review).filter(
+        Review.instructor_id == instructor_id,
+        Review.is_public
+    ).order_by(Review.created_at.desc()).all()
+
+    return [
+        ReviewRead(
+            id=review.id,
+            lesson_id=review.lesson_id,
+            student_id=review.student_id,
+            instructor_id=review.instructor_id,
+            rating=review.rating,
+            comment=review.comment,
+            student_email=None,
+            is_public=review.is_public,
+            created_at=review.created_at
+        )
+        for review in reviews
+    ]

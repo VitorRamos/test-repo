@@ -119,8 +119,8 @@ def logout(driver):
 
 
 def get_future_datetime_local():
-    future_time = datetime.now() + timedelta(days=1)
-    return future_time.strftime("%m%d00%Y%H%MP")
+    future_time = datetime.now() + timedelta(days=1, hours=1)
+    return future_time.strftime("%Y-%m-%dT%H:%M")
 
 
 def book_instructor_by_name(driver, instructor_name):
@@ -143,7 +143,7 @@ def book_instructor_by_name(driver, instructor_name):
     date_input = None
     duration_input = None
     for _ in range(6):
-        inputs = target.find_elements(By.CSS_SELECTOR, "input[type='date'], input[type='datetime-local']")
+        inputs = target.find_elements(By.CSS_SELECTOR, "input[type='datetime-local']")
         number_inputs = target.find_elements(By.CSS_SELECTOR, "input[type='number']")
         if inputs and number_inputs:
             date_input = inputs[0]
@@ -227,6 +227,11 @@ def submit_review_for_first_completed(driver):
 
     assert submit_button is not None
     submit_button.click()
+    try:
+        alert = driver.switch_to.alert
+        alert.accept()
+    except Exception:
+        pass
     time.sleep(DELAY_SHORT)
 
 def validate_code_for_first_confirmed(driver, code):

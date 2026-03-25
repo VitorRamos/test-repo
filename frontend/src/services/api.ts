@@ -110,7 +110,9 @@ export const api = {
       api.request(`/reviews/${reviewId}`, {
         method: "PUT",
         body: JSON.stringify(data)
-      })
+      }),
+    getPublicByInstructor: (instructorId: string) =>
+      api.request(`/reviews/public/${instructorId}`, { method: "GET" }).catch(() => [])
   },
 
   instructors: {
