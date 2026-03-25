@@ -120,7 +120,7 @@ def logout(driver):
 
 def get_future_datetime_local():
     future_time = datetime.now() + timedelta(days=1, hours=1)
-    return future_time.strftime("%Y-%m-%dT%H:%M")
+    return future_time.strftime("%m%d00%Y%H%MP")
 
 
 def book_instructor_by_name(driver, instructor_name):
