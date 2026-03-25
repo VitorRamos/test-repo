@@ -8,16 +8,16 @@
 
 import time
 import random
+import os
 from datetime import datetime, timedelta
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 
 BASE_URL = "http://localhost:8000"
-KEEP_BROWSER_OPEN = False
+KEEP_BROWSER_OPEN = os.getenv("KEEP_BROWSER_OPEN", "false").lower() == "true"
 DELAY_SHORT = 0.5
 DELAY_MEDIUM = 1.0
 DELAY_LONG = 2.0
