@@ -1,7 +1,7 @@
 # TUDO (Pendências e Melhorias)
 
 - Implementar fluxo de pagamento (escrow), incluindo `pending_payment` e liberação ao confirmar código.
-- Adicionar migrations para novas colunas de `lessons` e tabela `reviews`.
+- Adicionar migrations para novas colunas de `lessons` e tabela `reviews` (incluindo `is_public`).
 - Exibir informações do aluno para o instrutor nas listas de aulas (nome/contato).
 - Bloquear confirmação de código fora do horário da aula (regra de data/horário).
 - Criar testes E2E para fluxo de agendamento, confirmação, cancelamento e validação de código.

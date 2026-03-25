@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react"
 import { api } from "../services/api"
-import type { Lesson, User } from "../types"
+import type { Lesson, Review, User } from "../types"
 import "./Dashboard.css"
 
 interface InstructorStats {
+  instructor_id: string
   total_lessons: number
   rating: number
   students_taught: number
@@ -29,6 +30,7 @@ export function Dashboard({ user }: DashboardProps) {
   const [earnings, setEarnings] = useState<Earnings | null>(null)
   const [loading, setLoading] = useState(true)
   const [lessons, setLessons] = useState<Lesson[]>([])
+  const [reviews, setReviews] = useState<Review[]>([])
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState<string | null>(null)
   const [codeInputs, setCodeInputs] = useState<Record<string, string>>({})
@@ -50,6 +52,13 @@ export function Dashboard({ user }: DashboardProps) {
       setStats(statsData)
       setEarnings(earningsData)
       setLessons(lessonsData || [])
+
+      if (statsData?.instructor_id) {
+        const reviewsData = await api.reviews.getByInstructor(statsData.instructor_id)
+        setReviews(reviewsData || [])
+      } else {
+        setReviews([])
+      }
     } catch (error) {
       console.error("Falha ao carregar dados do instrutor:", error)
     } finally {
@@ -299,7 +308,33 @@ export function Dashboard({ user }: DashboardProps) {
             <button className="action-btn" onClick={() => scrollToSection("ganhos")}>
               💰 Ganhos
             </button>
+            <button className="action-btn" onClick={() => scrollToSection("avaliacoes")}>
+              ⭐ Avaliações
+            </button>
           </div>
+        </div>
+
+        {/* Reviews */}
+        <div className="dashboard-card actions-card span-2" id="avaliacoes">
+          <h3>⭐ Avaliações Recentes</h3>
+          {reviews.length === 0 ? (
+            <p>Nenhuma avaliação ainda.</p>
+          ) : (
+            <div className="reviews-list">
+              {reviews.slice(0, 6).map((review) => (
+                <div key={review.id} className="review-item">
+                  <div className="review-header">
+                    <strong>{review.student_email || "Aluno"}</strong>
+                    <span>⭐ {review.rating.toFixed(1)}</span>
+                  </div>
+                  {review.comment && <p>{review.comment}</p>}
+                  {review.is_public === false && (
+                    <span className="review-private">Avaliação privada</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

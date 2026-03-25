@@ -161,6 +161,7 @@ def get_instructor_stats(
     unique_students = len(set(lesson.student_id for lesson in lessons))
     
     return {
+        "instructor_id": instructor.id,
         "total_lessons": instructor.total_lessons,
         "rating": instructor.rating,
         "students_taught": unique_students,

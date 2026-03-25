@@ -25,6 +25,9 @@ export function MyBookings({ user }: MyBookingsProps) {
   const [ratingInputs, setRatingInputs] = useState<Record<string, number>>({})
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
   const [ratingSubmitting, setRatingSubmitting] = useState<string | null>(null)
+  const [publicInputs, setPublicInputs] = useState<Record<string, boolean>>({})
+  const [editingLessonId, setEditingLessonId] = useState<string | null>(null)
+  const [reviewIds, setReviewIds] = useState<Record<string, string>>({})
 
   const sortedBookings = useMemo(() => {
     return [...bookings].sort(
@@ -100,11 +103,47 @@ export function MyBookings({ user }: MyBookingsProps) {
     try {
       const rating = ratingInputs[lessonId] || 5
       const comment = commentInputs[lessonId]?.trim() || undefined
-      await api.reviews.create({ lesson_id: lessonId, rating, comment })
+      const isPublic = publicInputs[lessonId] ?? true
+      await api.reviews.create({ lesson_id: lessonId, rating, comment, is_public: isPublic })
       setActionMessage("Avaliação enviada com sucesso.")
       await loadBookings()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao enviar avaliação")
+    } finally {
+      setRatingSubmitting(null)
+    }
+  }
+
+  const handleEditReview = async (lessonId: string) => {
+    setError(null)
+    setActionMessage(null)
+    try {
+      const review = await api.reviews.getByLesson(lessonId)
+      setReviewIds((prev) => ({ ...prev, [lessonId]: review.id }))
+      setRatingInputs((prev) => ({ ...prev, [lessonId]: review.rating }))
+      setCommentInputs((prev) => ({ ...prev, [lessonId]: review.comment || "" }))
+      setPublicInputs((prev) => ({ ...prev, [lessonId]: review.is_public ?? true }))
+      setEditingLessonId(lessonId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao carregar avaliação")
+    }
+  }
+
+  const handleUpdateRating = async (lessonId: string) => {
+    setRatingSubmitting(lessonId)
+    setError(null)
+    setActionMessage(null)
+    try {
+      const reviewId = reviewIds[lessonId]
+      const rating = ratingInputs[lessonId] || 5
+      const comment = commentInputs[lessonId]?.trim() || undefined
+      const isPublic = publicInputs[lessonId] ?? true
+      await api.reviews.update(reviewId, { rating, comment, is_public: isPublic })
+      setActionMessage("Avaliação atualizada com sucesso.")
+      setEditingLessonId(null)
+      await loadBookings()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao atualizar avaliação")
     } finally {
       setRatingSubmitting(null)
     }
@@ -192,6 +231,19 @@ export function MyBookings({ user }: MyBookingsProps) {
                             }
                           />
                         </label>
+                        <label className="rating-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={publicInputs[lesson.id] ?? true}
+                            onChange={(e) =>
+                              setPublicInputs((prev) => ({
+                                ...prev,
+                                [lesson.id]: e.target.checked
+                              }))
+                            }
+                          />
+                          Tornar avaliação pública
+                        </label>
                         <label>
                           Comentário (opcional)
                           <textarea
@@ -216,7 +268,78 @@ export function MyBookings({ user }: MyBookingsProps) {
                     )}
 
                     {lesson.status === "completed" && lesson.has_review && (
-                      <div className="rating-done">Avaliação enviada ✅</div>
+                      <div className="rating-form">
+                        {editingLessonId !== lesson.id ? (
+                          <>
+                            <div className="rating-done">Avaliação enviada ✅</div>
+                            <button
+                              className="action-btn"
+                              onClick={() => handleEditReview(lesson.id)}
+                            >
+                              Editar avaliação
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <label>
+                              Avaliação (1-5)
+                              <input
+                                type="number"
+                                min={1}
+                                max={5}
+                                value={ratingInputs[lesson.id] || 5}
+                                onChange={(e) =>
+                                  setRatingInputs((prev) => ({
+                                    ...prev,
+                                    [lesson.id]: Number(e.target.value)
+                                  }))
+                                }
+                              />
+                            </label>
+                            <label className="rating-checkbox">
+                              <input
+                                type="checkbox"
+                                checked={publicInputs[lesson.id] ?? true}
+                                onChange={(e) =>
+                                  setPublicInputs((prev) => ({
+                                    ...prev,
+                                    [lesson.id]: e.target.checked
+                                  }))
+                                }
+                              />
+                              Tornar avaliação pública
+                            </label>
+                            <label>
+                              Comentário (opcional)
+                              <textarea
+                                rows={2}
+                                value={commentInputs[lesson.id] || ""}
+                                onChange={(e) =>
+                                  setCommentInputs((prev) => ({
+                                    ...prev,
+                                    [lesson.id]: e.target.value
+                                  }))
+                                }
+                              />
+                            </label>
+                            <div className="rating-actions">
+                              <button
+                                className="action-btn"
+                                onClick={() => handleUpdateRating(lesson.id)}
+                                disabled={ratingSubmitting === lesson.id}
+                              >
+                                {ratingSubmitting === lesson.id ? "Salvando..." : "Salvar avaliação"}
+                              </button>
+                              <button
+                                className="cancel-btn"
+                                onClick={() => setEditingLessonId(null)}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
                 )

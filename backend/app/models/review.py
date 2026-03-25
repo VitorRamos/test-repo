@@ -20,4 +20,5 @@ class Review(Base):
     instructor_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True))
     rating: Mapped[int]
     comment: Mapped[str | None] = mapped_column(nullable=True)
+    is_public: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

@@ -97,9 +97,18 @@ export const api = {
       })
   },
   reviews: {
-    create: (data: { lesson_id: string; rating: number; comment?: string }) =>
+    create: (data: { lesson_id: string; rating: number; comment?: string; is_public?: boolean }) =>
       api.request("/reviews/", {
         method: "POST",
+        body: JSON.stringify(data)
+      }),
+    getByInstructor: (instructorId: string) =>
+      api.request(`/reviews/instructor/${instructorId}`, { method: "GET" }).catch(() => []),
+    getByLesson: (lessonId: string) =>
+      api.request(`/reviews/lesson/${lessonId}`, { method: "GET" }),
+    update: (reviewId: string, data: { rating: number; comment?: string; is_public?: boolean }) =>
+      api.request(`/reviews/${reviewId}`, {
+        method: "PUT",
         body: JSON.stringify(data)
       })
   },
@@ -128,6 +137,7 @@ export const api = {
 
     getStats: () =>
       api.request("/instructors/stats", { method: "GET" }).catch(() => ({
+        instructor_id: "",
         total_lessons: 0,
         rating: 0,
         students_taught: 0,

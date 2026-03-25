@@ -47,3 +47,15 @@ export interface Lesson {
   has_review?: boolean
   created_at: string
 }
+
+export interface Review {
+  id: string
+  lesson_id: string
+  student_id: string
+  instructor_id: string
+  rating: number
+  comment?: string | null
+  student_email?: string | null
+  is_public?: boolean
+  created_at: string
+}

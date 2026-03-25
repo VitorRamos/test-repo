@@ -7,6 +7,7 @@ class ReviewCreate(BaseModel):
     lesson_id: UUID
     rating: int = Field(ge=1, le=5)
     comment: str | None = None
+    is_public: bool = True
 
 
 class ReviewRead(BaseModel):
@@ -16,7 +17,15 @@ class ReviewRead(BaseModel):
     instructor_id: UUID
     rating: int
     comment: str | None
+    student_email: str | None = None
+    is_public: bool
     created_at: datetime
+
+
+class ReviewUpdate(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    comment: str | None = None
+    is_public: bool = True
 
     class Config:
         from_attributes = True
