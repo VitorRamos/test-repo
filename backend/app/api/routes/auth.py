@@ -2,32 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from backend.app.api.deps import get_db
+from backend.app.api.deps import get_db, get_current_user
 from backend.app.schemas.auth import TokenResponse
 from backend.app.schemas.user import UserCreate
 from backend.app.models.user import User
 from backend.app.core.security import verify_password, hash_password, create_access_token
 
 router = APIRouter()
-
-def create_user(db: Session, data: UserCreate, role: str = "student") -> User:
-    existing = db.query(User).filter(User.email == data.email).first()
-
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    user = User(
-        email=data.email,
-        password_hash=hash_password(data.password),
-        role=role
-    )
-
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-
-    return user
-
 
 @router.post("/login", response_model=TokenResponse)
 def login(
@@ -54,4 +35,26 @@ def login(
 
 @router.post("/register")
 def register(data: UserCreate, db: Session = Depends(get_db)):
-    return create_user(db, data)
+    existing = db.query(User).filter(User.email == data.email).first()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    user = User(
+        email=data.email,
+        password_hash=hash_password(data.password),
+        role="student"
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return user
+
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    return {
+        "email": current_user.email,
+        "role": current_user.role
+    }

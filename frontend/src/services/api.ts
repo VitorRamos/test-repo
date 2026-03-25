@@ -21,13 +21,29 @@ export const api = {
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.detail || "Request failed")
+
+      let message = "Request failed"
+
+      if (error?.detail) {
+        if (Array.isArray(error.detail)) {
+          message = error.detail.map((e: any) => e.msg).join(", ")
+        } else {
+          message = error.detail
+        }
+      }
+
+      throw new Error(message)
     }
 
-    return response.json()
+    const text = await response.text()
+    return text ? JSON.parse(text) : null
   },
 
   auth: {
+    me: async () => api.request("/auth/me", {
+        method: "GET"
+      }),
+
     register: (email: string, password: string) =>
       api.request("/auth/register", {
         method: "POST",
@@ -50,7 +66,7 @@ export const api = {
   },
 
   instructors: {
-    register: (data: any) =>
+    become: (data: any) =>
       api.request("/instructors/", {
         method: "POST",
         body: JSON.stringify(data)

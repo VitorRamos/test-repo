@@ -5,7 +5,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute"
 import { Home } from "./pages/Home"
 import { Login } from "./pages/Login"
 import { Register } from "./pages/Register"
-import { InstructorRegister } from "./pages/InstructorRegister"
+import { BecomeInstructor } from "./pages/BecomeInstructor"
 import { Dashboard } from "./pages/Dashboard"
 import "./App.css"
 
@@ -23,7 +23,7 @@ function AppContent() {
           path="/become-instructor"
           element={
             <ProtectedRoute user={user}>
-              <InstructorRegister user={user} />
+              <BecomeInstructor user={user} />
             </ProtectedRoute>
           }
         />

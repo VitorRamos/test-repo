@@ -2,13 +2,15 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { api } from "../services/api"
 import type { User } from "../types"
-import "./InstructorRegister.css"
+import "./BecomeInstructor.css"
+import { useAuth } from "../context/AuthContext"
 
 interface InstructorRegisterProps {
   user: User | null
 }
 
-export function InstructorRegister({ user }: InstructorRegisterProps) {
+export function BecomeInstructor({ user }: InstructorRegisterProps) {
+  const { updateUser } = useAuth()
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
     name: "",
@@ -51,7 +53,8 @@ export function InstructorRegister({ user }: InstructorRegisterProps) {
         ...formData,
         price_per_hour: parseFloat(formData.price_per_hour)
       }
-      await api.instructors.register(payload)
+      await api.instructors.become(payload)
+      await updateUser()
       navigate("/")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed")

@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.api.deps import get_db, get_current_user
-from backend.app.api.routes.auth import create_user
 from backend.app.models.instructor import Instructor
 from backend.app.models.lesson import Lesson
 from backend.app.models.user import User
@@ -12,21 +11,22 @@ router = APIRouter()
 
 
 @router.post("/", response_model=InstructorRead)
-def register_instructor(
+def become_instructor(
     data: InstructorCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
-    instructor = db.query(Instructor).filter(Instructor.cpf == data.cpf).first()
+    instructor = db.query(Instructor).filter(Instructor.user_id == user.id).first()
     if instructor:
-        raise HTTPException(status_code=400, detail="Instructor with this CPF already exists")
+        raise HTTPException(status_code=400, detail="User is already an instructor")
 
-    user = create_user(db, data, "instructor")  # Reuse the registration logic to create the user
-    
     instructor = Instructor(
         **data.model_dump(exclude={"email", "password"}),
         user_id=user.id
     )
 
+    user.role = "instructor"
+    db.add(user)
     db.add(instructor)
     db.commit()
     db.refresh(instructor)
@@ -53,16 +53,6 @@ def search_instructors(
         query = query.filter(Instructor.rating >= rating_min)
     
     return query.all()
-
-@router.get("/{instructor_id}", response_model=InstructorRead)
-def get_instructor(
-    instructor_id: str,
-    db: Session = Depends(get_db)
-):
-    instructor = db.query(Instructor).filter(Instructor.id == instructor_id).first()
-    if not instructor:
-        raise HTTPException(status_code=404, detail="Instructor not found")
-    return instructor
 
 @router.get("/my-lessons")
 def get_my_lessons(
@@ -143,3 +133,14 @@ def get_instructor_stats(
         "state": instructor.state,
         "price_per_hour": instructor.price_per_hour
     }
+
+
+@router.get("/{instructor_id}", response_model=InstructorRead)
+def get_instructor(
+    instructor_id: str,
+    db: Session = Depends(get_db)
+):
+    instructor = db.query(Instructor).filter(Instructor.id == instructor_id).first()
+    if not instructor:
+        raise HTTPException(status_code=404, detail="Instructor not found")
+    return instructor

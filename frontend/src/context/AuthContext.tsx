@@ -7,6 +7,7 @@ interface AuthContextType {
   user: User | null
   loading: boolean
   error: string | null
+  updateUser: () => Promise<void>
   register: (email: string, password: string) => Promise<any>
   login: (email: string, password: string) => Promise<any>
   logout: () => void
@@ -62,12 +63,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
+  const updateUser = useCallback(async () => {
+  try {
+    const data = await api.auth.me()
+    const userData = {
+      email: data.email,
+      role: data.role
+    }
+    setUser(userData as User)
+    storage.setUser(userData)
+  } catch (err) {
+    console.error("Failed to update user", err)
+    logout() // optional: force logout if token invalid
+  }
+}, [logout])
+
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
         error,
+        updateUser,
         register,
         login,
         logout,

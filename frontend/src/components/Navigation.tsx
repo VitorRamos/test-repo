@@ -15,42 +15,52 @@ export function Navigation({ user, onLogout }: NavigationProps) {
     navigate("/")
   }
 
+  const username = user?.email.split("@")[0]
+
   return (
     <nav className="navbar">
       <div className="nav-container">
-        <Link to="/" className="nav-brand">
-          🚗 DriveHub
-        </Link>
-
-        <div className="nav-menu">
-          <Link to="/" className="nav-link">
-            Início
+        
+        {/* LEFT SIDE */}
+        <div className="nav-left">
+          <Link to="/" className="nav-brand">
+            🚗 DriveHub
           </Link>
 
+          {user && (
+            <span className="nav-user">
+              👋 Bem-Vindo {username}
+            </span>
+          )}
+        </div>
+
+        {/* RIGHT SIDE */}
+        <div className="nav-menu">
           {!user ? (
             <>
-              <Link to="/login" className="nav-link">
-                Entrar
-              </Link>
-              <Link to="/register" className="nav-link">
-                Cadastrar
-              </Link>
+              <Link to="/" className="nav-link">Início</Link>
+              <Link to="/login" className="nav-link">Entrar</Link>
+              <Link to="/register" className="nav-link">Cadastrar</Link>
             </>
           ) : (
             <>
-              <span className="nav-user">
-                👋 Bem-vindo, {user.email.split("@")[0]}!
-              </span>
-              {user.role === "instructor" ? (
-                <>
-                  <Link to="/instructor" className="nav-link">
-                    📊 Painel
-                  </Link>
-                </>
-              ) : (
-                <>
-                </>
+              <Link to="/" className="nav-link">Início</Link>
+
+              {user.role === "instructor" && (
+                <Link to="/instructor" className="nav-link">
+                  Painel
+                </Link>
               )}
+
+              {user.role === "student" && (
+                <Link
+                  to="/become-instructor"
+                  className="nav-link nav-link-subtle"
+                >
+                  Tornar-se instrutor
+                </Link>
+              )}
+
               <button onClick={handleLogout} className="nav-logout">
                 Sair
               </button>
