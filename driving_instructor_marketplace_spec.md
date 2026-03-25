@@ -20,12 +20,13 @@ payment after lesson confirmation
 1.  Instructor registers and creates a profile
 2.  Instructor sets **price per hour**
 3.  Student searches instructors
-4.  Student books a lesson
-5.  Student pays in advance
-6.  Platform generates a **lesson confirmation code**
-7.  Student gives the code to the instructor during the lesson
-8.  Instructor confirms the code
-9.  Payment is released to instructor
+4.  Student requests a lesson booking
+5.  Instructor confirms the booking
+6.  Student pays in advance
+7.  Platform generates a **lesson confirmation code**
+8.  Student gives the code to the instructor during the lesson
+9.  Instructor confirms the code
+10. Payment is released to instructor
 
 ------------------------------------------------------------------------
 
@@ -164,6 +165,7 @@ Fields:
 
 Status values:
 
+-   pending_instructor (awaiting instructor confirmation)
 -   pending_payment
 -   confirmed
 -   completed
@@ -264,25 +266,29 @@ Status values:
 
 # Payment Flow
 
-Step 1: Student books lesson
+Step 1: Student requests lesson (booking)
 
-lesson.status = pending_payment
+lesson.status = pending_instructor
 
-Step 2: Student pays
+Step 2: Instructor confirms booking
+
+lesson.status = confirmed
+
+Step 3: Student pays
 
 payment.status = escrow\
 lesson.status = confirmed
 
-Step 3: Code generated
+Step 4: Code generated
 
 lesson_codes.code = random
 
-Step 4: Instructor confirms code
+Step 5: Instructor confirms code
 
 lesson_codes.confirmed = true\
 lesson.status = completed
 
-Step 5: Payment released
+Step 6: Payment released
 
 payment.status = released
 
@@ -351,7 +357,8 @@ Recommended API routes:
 Examples:
 
 POST /api/lessons/book\
-POST /api/lessons/{id}/confirm-code\
+POST /api/lessons/{id}/confirm\
+GET /api/lessons/my-bookings\
 GET /api/instructors/search
 
 ------------------------------------------------------------------------
