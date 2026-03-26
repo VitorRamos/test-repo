@@ -12,3 +12,10 @@
 - Adicionar migrations formais para `availability.start_date`, `availability.end_date` e `availability.days_of_week`.
 - Expandir E2E para booking múltiplo, filtros da central do instrutor e merge de disponibilidade.
 - Melhorar filtro do instrutores (mapa?)
+- Horario solicitacao card booking
+- Mesclar horarios que se sobrepoem instrutor
+- Mostrar instructores que solicitei no card da tela inicial
+- Nao mudar muito de tamanho ao selecionar varias datas card inicial
+- Criar um calendario mostrando os dias que tenho aula (mesma coisa para o instrutor)
+- Confirmar ao canclear uma aula (instrutor)
+- Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)

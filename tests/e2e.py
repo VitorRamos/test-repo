@@ -84,9 +84,11 @@ def go_to_become_instructor(driver):
     time.sleep(DELAY_SHORT)
 
 
-def fill_instructor_form(driver, name= None):
+def fill_instructor_form(driver, name = None):
     if name is None:
         name = f"Instrutor {generate_email().split('@')[0]}"
+    name = name.split("@")[0]
+
     driver.find_element(By.ID, "name").send_keys(name)
     driver.find_element(By.ID, "cpf").send_keys("12345678900")
     driver.find_element(By.ID, "detran_license").send_keys("ABC123456D")
@@ -429,7 +431,7 @@ def test_register_instructor():
         print("✅ Login successful")
 
         go_to_become_instructor(driver)
-        fill_instructor_form(driver)
+        fill_instructor_form(driver, email)
         submit_form(driver)
 
         body = get_body(driver)
@@ -477,7 +479,7 @@ def test_navbar_updates():
         register_and_login(driver, email, password)
 
         go_to_become_instructor(driver)
-        fill_instructor_form(driver)
+        fill_instructor_form(driver, email)
         submit_form(driver)
 
         body = get_body(driver)
@@ -736,7 +738,7 @@ def test_instructor_invalid_availability_rejected():
     try:
         register_and_login(driver, email, password)
         go_to_become_instructor(driver)
-        fill_instructor_form(driver)
+        fill_instructor_form(driver, email)
         submit_form(driver)
 
         driver.find_element(By.LINK_TEXT, "Central").click()
