@@ -90,7 +90,7 @@ def fill_instructor_form(driver, name = None):
     name = name.split("@")[0]
 
     driver.find_element(By.ID, "name").send_keys(name)
-    driver.find_element(By.ID, "cpf").send_keys("12345678900")
+    driver.find_element(By.ID, "cpf").send_keys("52998224725")
     driver.find_element(By.ID, "detran_license").send_keys("ABC123456D")
     driver.find_element(By.ID, "price_per_hour").send_keys("100")
     driver.find_element(By.ID, "city").send_keys("Natal")
@@ -301,6 +301,11 @@ def get_confirmation_code_from_my_bookings(driver):
 
 def submit_review_for_first_completed(driver):
     go_to_my_bookings(driver)
+    filters = driver.find_elements(By.ID, "booking-filter")
+    if filters:
+        filters[0].send_keys("Concluídos")
+        time.sleep(DELAY_SHORT)
+
     cards = driver.find_elements(By.CLASS_NAME, "booking-card")
     assert len(cards) > 0
     target = None
@@ -337,6 +342,14 @@ def submit_review_for_first_completed(driver):
     except Exception:
         pass
     time.sleep(DELAY_SHORT)
+
+
+def show_cancelled_bookings(driver):
+    go_to_my_bookings(driver)
+    filters = driver.find_elements(By.ID, "booking-filter")
+    if filters:
+        filters[0].send_keys("Cancelados")
+        time.sleep(DELAY_SHORT)
 
 
 def wait_until(condition, timeout=5, interval=0.2):
@@ -387,6 +400,11 @@ def cancel_first_booking_as_instructor(driver):
     cancel_buttons = section.find_elements(By.CLASS_NAME, "cancel-btn")
     assert len(cancel_buttons) > 0
     cancel_buttons[0].click()
+    try:
+        alert = driver.switch_to.alert
+        alert.accept()
+    except Exception:
+        pass
     time.sleep(DELAY_SHORT)
 
 # =========================
@@ -604,8 +622,9 @@ def test_cancel_booking_flow():
 
         # Student cancels
         cancel_first_booking_as_student(driver)
+        show_cancelled_bookings(driver)
         body = get_body(driver)
-        assert ("Agendamento cancelado" in body) or ("Cancelada" in body)
+        assert "Cancelada" in body
         print("✅ Booking cancelled by student")
 
     finally:
@@ -719,7 +738,7 @@ def test_instructor_conflict_booking():
 
         # The overlapping pending request is automatically cancelled
         login(driver, student2_email, password)
-        go_to_my_bookings(driver)
+        show_cancelled_bookings(driver)
         body = get_body(driver)
         assert "Cancelada" in body
         print("✅ Conflicting pending booking cancelled after confirmation")

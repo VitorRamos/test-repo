@@ -1,5 +1,13 @@
 # TUDO (Pendências e Melhorias)
 
+## Concluído
+
+- Confirmar ao cancelar uma aula (instrutor).
+- Filtro padrão ativo em `My Bookings`.
+- Validar CPF, email e licença DETRAN.
+
+## Pendente
+
 - Implementar fluxo de pagamento (escrow), incluindo `pending_payment` e liberação ao confirmar código.
 - Adicionar migrations para novas colunas de `lessons` e tabela `reviews` (incluindo `is_public`).
 - Adicionar migrations formais para `availability.start_date`, `availability.end_date` e `availability.days_of_week`.
@@ -17,8 +25,5 @@
 - Mostrar instructores que solicitei no card da tela inicial
 - Nao mudar muito de tamanho ao selecionar varias datas card inicial
 - Criar um calendario mostrando os dias que tenho aula (mesma coisa para o instrutor)
-- Confirmar ao canclear uma aula (instrutor)
 - Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)
-- Filtro padra e ativo em my bookings
 - Esses cards de stats podem ir para o card Ganhos em instrutor e nomear esse card de outra coisa que melhor represente
-- Validar cpf, email, licenca detran.

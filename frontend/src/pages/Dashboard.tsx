@@ -140,8 +140,17 @@ export function InstructorPortal({ user }: DashboardProps) {
   }
 
   const handleCancel = async (lessonId: string) => {
-    setCancelingId(lessonId)
     const lesson = lessons.find((item) => item.id === lessonId)
+    const confirmMessage =
+      lesson?.status === "confirmed"
+        ? "Cancelar esta aula confirmada?"
+        : "Cancelar esta solicitacao de aula?"
+
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
+    setCancelingId(lessonId)
     if (lesson?.status === "confirmed") {
       setConfirmedError(null)
     } else {

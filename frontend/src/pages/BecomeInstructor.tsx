@@ -4,6 +4,12 @@ import { api } from "../services/api"
 import type { User } from "../types"
 import "./BecomeInstructor.css"
 import { useAuth } from "../context/AuthContext"
+import {
+  formatCpf,
+  isValidCpf,
+  isValidDetranLicense,
+  normalizeDetranLicense
+} from "../utils/validation"
 
 interface InstructorRegisterProps {
   user: User | null
@@ -37,21 +43,56 @@ export function BecomeInstructor({ user }: InstructorRegisterProps) {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
+    const { name, value } = e.target
+    const nextValue =
+      name === "cpf"
+        ? formatCpf(value)
+        : name === "detran_license"
+          ? normalizeDetranLicense(value)
+          : name === "state"
+            ? value.toUpperCase().slice(0, 2)
+            : value
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: nextValue
     })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+
+    if (!isValidCpf(formData.cpf)) {
+      setError("Informe um CPF valido")
+      return
+    }
+
+    if (!isValidDetranLicense(formData.detran_license)) {
+      setError("Informe uma licenca DETRAN valida")
+      return
+    }
+
+    const pricePerHour = parseFloat(formData.price_per_hour)
+    if (Number.isNaN(pricePerHour) || pricePerHour <= 0) {
+      setError("Informe um preco por hora valido")
+      return
+    }
+
+    if (!/^[A-Z]{2}$/.test(formData.state.trim().toUpperCase())) {
+      setError("Informe a sigla do estado com 2 letras")
+      return
+    }
+
     setLoading(true)
 
     try {
       const payload = {
         ...formData,
-        price_per_hour: parseFloat(formData.price_per_hour)
+        cpf: formData.cpf,
+        detran_license: normalizeDetranLicense(formData.detran_license),
+        state: formData.state.trim().toUpperCase(),
+        price_per_hour: pricePerHour
       }
       await api.instructors.become(payload)
       await updateUser()
@@ -95,6 +136,8 @@ export function BecomeInstructor({ user }: InstructorRegisterProps) {
                 onChange={handleChange}
                 required
                 placeholder="000.000.000-00"
+                inputMode="numeric"
+                maxLength={14}
               />
             </div>
           </div>
@@ -110,6 +153,8 @@ export function BecomeInstructor({ user }: InstructorRegisterProps) {
                 onChange={handleChange}
                 required
                 placeholder="ABC123456D"
+                minLength={6}
+                maxLength={20}
               />
             </div>
 

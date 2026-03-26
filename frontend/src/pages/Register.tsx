@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import "./Auth.css"
+import { isValidEmail, normalizeEmail } from "../utils/validation"
 
 export function Register() {
   const navigate = useNavigate()
@@ -28,6 +29,13 @@ export function Register() {
     e.preventDefault()
     setError("")
 
+    const email = normalizeEmail(form.email)
+
+    if (!isValidEmail(email)) {
+      setError("Informe um email valido")
+      return
+    }
+
     if (form.password !== form.confirmPassword) {
       setError("As senhas não correspondem")
       return
@@ -41,7 +49,7 @@ export function Register() {
     try {
       setLoading(true)
 
-      await register(form.email, form.password)
+      await register(email, form.password)
 
       navigate("/login")
 
@@ -66,6 +74,7 @@ export function Register() {
               name="email"
               type="email"
               required
+              value={form.email}
               placeholder="seu@email.com"
               onChange={handleChange}
             />

@@ -34,7 +34,7 @@ export function MyBookings({ user }: MyBookingsProps) {
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
   const [ratingSubmitting, setRatingSubmitting] = useState<string | null>(null)
   const [publicInputs, setPublicInputs] = useState<Record<string, boolean>>({})
-  const [filter, setFilter] = useState<"all" | "active" | "completed" | "cancelled">("all")
+  const [filter, setFilter] = useState<"all" | "active" | "completed" | "cancelled">("active")
 
   const sortedBookings = useMemo(() => {
     return [...bookings].sort((a, b) => {
