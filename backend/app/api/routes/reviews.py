@@ -94,21 +94,23 @@ def get_reviews_for_instructor(
     student_ids = {review.student_id for review in reviews}
     students = db.query(User).filter(User.id.in_(student_ids)).all() if student_ids else []
     student_map = {student.id: student for student in students}
+    review_reads: list[ReviewRead] = []
 
-    return [
-        ReviewRead(
+    for review in reviews:
+        student = student_map.get(review.student_id)
+        review_reads.append(ReviewRead(
             id=review.id,
             lesson_id=review.lesson_id,
             student_id=review.student_id,
             instructor_id=review.instructor_id,
             rating=review.rating,
             comment=review.comment,
-            student_email=student_map.get(review.student_id).email if student_map.get(review.student_id) else None,
+            student_email=student.email if student else None,
             is_public=review.is_public,
             created_at=review.created_at
-        )
-        for review in reviews
-    ]
+        ))
+
+    return review_reads
 
 
 @router.get("/public/{instructor_id}", response_model=list[ReviewRead])

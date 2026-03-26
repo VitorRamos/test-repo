@@ -1,3 +1,5 @@
+from collections.abc import Generator
+
 from backend.app.db.session import SessionLocal
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
@@ -9,7 +11,7 @@ from backend.app.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
-def get_db():
+def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
         yield db
@@ -19,7 +21,7 @@ def get_db():
 def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
-):
+) -> User:
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
