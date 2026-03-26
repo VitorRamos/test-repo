@@ -11,4 +11,3 @@
 - Adicionar testes E2E para disponibilidade inválida, conflitos na confirmação e horários indisponíveis.
 - Revisar ordenação e UX das listas de aulas do instrutor (pendentes, confirmadas, concluídas).
 - Exibir disponibilidade pública do instrutor de forma segura e resumida, sem expor dados desnecessários.
-- Paginal inicial do instrutor e a painel (tambem renomear o painel)
