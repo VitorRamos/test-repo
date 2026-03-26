@@ -75,7 +75,9 @@ def go_to_become_instructor(driver):
     time.sleep(DELAY_SHORT)
 
 
-def fill_instructor_form(driver, name="João Teste"):
+def fill_instructor_form(driver, name= None):
+    if name is None:
+        name = f"Instrutor {generate_email().split('@')[0]}"
     driver.find_element(By.ID, "name").send_keys(name)
     driver.find_element(By.ID, "cpf").send_keys("12345678900")
     driver.find_element(By.ID, "detran_license").send_keys("ABC123456D")
