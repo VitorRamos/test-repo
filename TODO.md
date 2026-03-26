@@ -19,3 +19,6 @@
 - Criar um calendario mostrando os dias que tenho aula (mesma coisa para o instrutor)
 - Confirmar ao canclear uma aula (instrutor)
 - Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)
+- Filtro padra e ativo em my bookings
+- Esses cards de stats podem ir para o card Ganhos em instrutor e nomear esse card de outra coisa que melhor represente
+- Validar cpf, email, licenca detran.
