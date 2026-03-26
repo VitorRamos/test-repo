@@ -15,6 +15,14 @@ const statusLabels: Record<string, string> = {
   cancelled: "Cancelada"
 }
 
+const statusPriority: Record<string, number> = {
+  pending_instructor: 0,
+  confirmed: 1,
+  pending_payment: 2,
+  completed: 3,
+  cancelled: 4
+}
+
 export function MyBookings({ user }: MyBookingsProps) {
   const [bookings, setBookings] = useState<Lesson[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,12 +34,32 @@ export function MyBookings({ user }: MyBookingsProps) {
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
   const [ratingSubmitting, setRatingSubmitting] = useState<string | null>(null)
   const [publicInputs, setPublicInputs] = useState<Record<string, boolean>>({})
+  const [filter, setFilter] = useState<"all" | "active" | "completed" | "cancelled">("all")
 
   const sortedBookings = useMemo(() => {
-    return [...bookings].sort(
-      (a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime()
-    )
+    return [...bookings].sort((a, b) => {
+      const statusDiff = (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
+      if (statusDiff !== 0) {
+        return statusDiff
+      }
+      return new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime()
+    })
   }, [bookings])
+
+  const filteredBookings = useMemo(() => {
+    if (filter === "all") {
+      return sortedBookings
+    }
+    if (filter === "active") {
+      return sortedBookings.filter((lesson) =>
+        ["pending_instructor", "confirmed", "pending_payment"].includes(lesson.status)
+      )
+    }
+    if (filter === "completed") {
+      return sortedBookings.filter((lesson) => lesson.status === "completed")
+    }
+    return sortedBookings.filter((lesson) => lesson.status === "cancelled")
+  }, [filter, sortedBookings])
 
   useEffect(() => {
     loadBookings()
@@ -133,8 +161,28 @@ export function MyBookings({ user }: MyBookingsProps) {
           {sortedBookings.length === 0 ? (
             <p>Você ainda não possui agendamentos.</p>
           ) : (
-            <div className="bookings-list">
-              {sortedBookings.map((lesson) => {
+            <>
+              <div className="bookings-toolbar">
+                <label htmlFor="booking-filter">Filtrar</label>
+                <select
+                  id="booking-filter"
+                  value={filter}
+                  onChange={(e) =>
+                    setFilter(e.target.value as "all" | "active" | "completed" | "cancelled")
+                  }
+                >
+                  <option value="all">Todos</option>
+                  <option value="active">Ativos</option>
+                  <option value="completed">Concluídos</option>
+                  <option value="cancelled">Cancelados</option>
+                </select>
+              </div>
+
+              {filteredBookings.length === 0 ? (
+                <p>Nenhum agendamento encontrado para este filtro.</p>
+              ) : (
+                <div className="bookings-list">
+                  {filteredBookings.map((lesson) => {
                 const start = new Date(lesson.scheduled_start)
                 const end = new Date(lesson.scheduled_end)
                 const durationHours =
@@ -248,8 +296,10 @@ export function MyBookings({ user }: MyBookingsProps) {
                     )}
                   </div>
                 )
-              })}
-            </div>
+                  })}
+                </div>
+              )}
+            </>
           )}
         </>
       )}

@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
+from backend.app.api.availability_utils import get_availability_weekdays, iter_candidate_slots
 from backend.app.api.deps import get_db, get_current_user
 from backend.app.models.instructor import Instructor
 from backend.app.models.lesson import Lesson
@@ -12,6 +13,7 @@ from backend.app.models.availability import Availability
 from backend.app.schemas.instructor import InstructorCreate, InstructorRead
 from backend.app.schemas.availability import AvailabilityCreate, AvailabilityRead
 from backend.app.schemas.lesson import LessonRead
+from backend.app.schemas.slot import AvailableDayRead
 
 router = APIRouter()
 
@@ -20,41 +22,40 @@ def get_available_slots_for_instructor(
     db: Session,
     instructor_id: str,
     duration_hours: float,
-    days_to_show: int = 14
-) -> list[str]:
-    duration_delta = timedelta(hours=duration_hours)
+    date_from: date | None = None,
+    date_to: date | None = None,
+    days_to_show: int = 21
+) -> list[dict[str, object]]:
     now = datetime.now()
+    start_date = date_from or now.date()
+    end_date = date_to or (now + timedelta(days=days_to_show - 1)).date()
     availability = db.query(Availability).filter(Availability.instructor_id == instructor_id).all()
     booked_lessons = db.query(Lesson).filter(
         Lesson.instructor_id == instructor_id,
         Lesson.status.in_(["confirmed", "completed", "pending_payment"])
     ).all()
+    return iter_candidate_slots(
+        availability=availability,
+        booked_lessons=booked_lessons,
+        duration_hours=duration_hours,
+        date_from=start_date,
+        date_to=end_date,
+        now=now
+    )
 
-    slots: list[str] = []
-    for i in range(days_to_show):
-        date = now + timedelta(days=i)
-        weekday = (date.weekday() + 1) % 7
-        day_slots = [slot for slot in availability if int(slot.weekday) == weekday]
 
-        for slot in day_slots:
-            start = datetime.combine(date.date(), datetime.strptime(slot.start_time, "%H:%M").time())
-            end = datetime.combine(date.date(), datetime.strptime(slot.end_time, "%H:%M").time())
-            cursor = start
-
-            while cursor + duration_delta <= end:
-                candidate_start = cursor
-                candidate_end = cursor + duration_delta
-                overlaps = any(
-                    candidate_start < lesson.scheduled_end and candidate_end > lesson.scheduled_start
-                    for lesson in booked_lessons
-                )
-
-                if not overlaps and candidate_start > now:
-                    slots.append(candidate_start.strftime("%Y-%m-%dT%H:%M"))
-
-                cursor += timedelta(hours=1)
-
-    return slots
+def availability_to_read(availability: Availability) -> AvailabilityRead:
+    return AvailabilityRead(
+        id=availability.id,
+        instructor_id=availability.instructor_id,
+        weekday=availability.weekday,
+        start_date=availability.start_date,
+        end_date=availability.end_date,
+        weekdays=get_availability_weekdays(availability),
+        start_time=availability.start_time,
+        end_time=availability.end_time,
+        created_at=availability.created_at
+    )
 
 
 @router.post("/", response_model=InstructorRead)
@@ -229,10 +230,11 @@ def get_availability(
     instructor = db.query(Instructor).filter(Instructor.user_id == user.id).first()
     if not instructor:
         raise HTTPException(status_code=404, detail="Instrutor não encontrado")
-    return db.query(Availability).filter(Availability.instructor_id == instructor.id).all()
+    availability = db.query(Availability).filter(Availability.instructor_id == instructor.id).all()
+    return [availability_to_read(slot) for slot in availability]
 
 
-@router.post("/availability", response_model=AvailabilityRead)
+@router.post("/availability", response_model=list[AvailabilityRead])
 def create_availability(
     data: AvailabilityCreate,
     db: Session = Depends(get_db),
@@ -242,16 +244,25 @@ def create_availability(
     if not instructor:
         raise HTTPException(status_code=404, detail="Instrutor não encontrado")
 
-    availability = Availability(
-        instructor_id=instructor.id,
-        weekday=data.weekday,
-        start_time=data.start_time,
-        end_time=data.end_time
-    )
-    db.add(availability)
+    created_entries: list[Availability] = []
+    weekdays_text = ",".join(str(day) for day in data.weekdays)
+    for time_range in data.time_ranges:
+        availability = Availability(
+            instructor_id=instructor.id,
+            weekday=data.weekdays[0],
+            start_date=data.start_date,
+            end_date=data.end_date,
+            days_of_week=weekdays_text,
+            start_time=time_range.start_time,
+            end_time=time_range.end_time
+        )
+        db.add(availability)
+        created_entries.append(availability)
+
     db.commit()
-    db.refresh(availability)
-    return availability
+    for availability in created_entries:
+        db.refresh(availability)
+    return [availability_to_read(slot) for slot in created_entries]
 
 
 @router.delete("/availability/{availability_id}")
@@ -273,16 +284,20 @@ def delete_availability(
     return {"status": "ok"}
 
 
-@router.get("/{instructor_id}/available-slots", response_model=list[str])
+@router.get("/{instructor_id}/available-slots", response_model=list[AvailableDayRead])
 def get_public_available_slots(
     instructor_id: str,
     duration_hours: float = Query(1, gt=0),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
     db: Session = Depends(get_db)
 ):
     instructor = db.query(Instructor).filter(Instructor.id == instructor_id).first()
     if not instructor:
         raise HTTPException(status_code=404, detail="Instrutor não encontrado")
-    return get_available_slots_for_instructor(db, str(instructor.id), duration_hours)
+    if date_from and date_to and date_to < date_from:
+        raise HTTPException(status_code=400, detail="A data final deve ser maior ou igual à inicial")
+    return get_available_slots_for_instructor(db, str(instructor.id), duration_hours, date_from, date_to)
 
 
 @router.get("/{instructor_id}", response_model=InstructorRead)

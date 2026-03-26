@@ -1,10 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-class AvailabilityCreate(BaseModel):
-    weekday: int = Field(ge=0, le=6)
+class AvailabilityTimeRange(BaseModel):
     start_time: str
     end_time: str
 
@@ -22,9 +21,37 @@ class AvailabilityCreate(BaseModel):
         return self
 
 
-class AvailabilityRead(AvailabilityCreate):
+class AvailabilityCreate(BaseModel):
+    start_date: date
+    end_date: date
+    weekdays: list[int] = Field(min_length=1, max_length=7)
+    time_ranges: list[AvailabilityTimeRange] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_date_window(self):
+        if self.end_date < self.start_date:
+            raise ValueError("Data final deve ser maior ou igual à data inicial")
+
+        return self
+
+    @field_validator("weekdays")
+    @classmethod
+    def validate_weekdays(cls, value: list[int]):
+        normalized = sorted(set(value))
+        if any(day < 0 or day > 6 for day in normalized):
+            raise ValueError("Os dias da semana devem estar entre 0 e 6")
+        return normalized
+
+
+class AvailabilityRead(BaseModel):
     id: UUID
     instructor_id: UUID
+    weekday: int
+    start_date: date | None = None
+    end_date: date | None = None
+    weekdays: list[int]
+    start_time: str
+    end_time: str
     created_at: datetime
 
     class Config:

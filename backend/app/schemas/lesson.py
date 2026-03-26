@@ -9,6 +9,12 @@ class LessonCreate(BaseModel):
     duration_hours: float = Field(gt=0)
 
 
+class LessonBatchCreate(BaseModel):
+    instructor_id: UUID
+    scheduled_starts: list[datetime] = Field(min_length=1)
+    duration_hours: float = Field(gt=0)
+
+
 class LessonConfirmCode(BaseModel):
     code: str
 

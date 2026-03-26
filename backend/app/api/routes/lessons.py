@@ -5,13 +5,14 @@ import string
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from backend.app.api.availability_utils import availability_matches_date, parse_time_value
 from backend.app.api.deps import get_db, get_current_user
 from backend.app.models.instructor import Instructor
 from backend.app.models.lesson import Lesson
 from backend.app.models.user import User
 from backend.app.models.review import Review
 from backend.app.models.availability import Availability
-from backend.app.schemas.lesson import LessonCreate, LessonRead, LessonConfirmCode
+from backend.app.schemas.lesson import LessonBatchCreate, LessonCreate, LessonRead, LessonConfirmCode
 
 router = APIRouter()
 
@@ -46,6 +47,81 @@ def lesson_to_read(
         created_at=lesson.created_at
     )
 
+
+def validate_lesson_request(
+    db: Session,
+    student: User,
+    instructor: Instructor,
+    scheduled_start: datetime,
+    duration_hours: float
+) -> tuple[datetime, float]:
+    if scheduled_start < datetime.now():
+        raise HTTPException(status_code=400, detail="O horário deve ser no futuro")
+
+    availability = db.query(Availability).filter(
+        Availability.instructor_id == instructor.id
+    ).all()
+    if not availability:
+        raise HTTPException(status_code=400, detail="Instrutor não disponível nesse dia")
+
+    start_time = scheduled_start.time()
+    scheduled_end = scheduled_start + timedelta(hours=duration_hours)
+    end_time = scheduled_end.time()
+    in_window = False
+    for slot in availability:
+        if not availability_matches_date(slot, scheduled_start.date()):
+            continue
+        slot_start = parse_time_value(slot.start_time)
+        slot_end = parse_time_value(slot.end_time)
+        if start_time >= slot_start and end_time <= slot_end:
+            in_window = True
+            break
+    if not in_window:
+        raise HTTPException(status_code=400, detail="Horário fora da disponibilidade do instrutor")
+
+    conflicts = db.query(Lesson).filter(
+        Lesson.instructor_id == instructor.id,
+        Lesson.status.in_(["confirmed", "completed", "pending_payment"]),
+        Lesson.scheduled_start < scheduled_end,
+        Lesson.scheduled_end > scheduled_start
+    ).first()
+    if conflicts:
+        raise HTTPException(status_code=400, detail="Horário já reservado com outro aluno")
+
+    student_conflicts = db.query(Lesson).filter(
+        Lesson.student_id == student.id,
+        Lesson.status.in_(["pending_instructor", "confirmed", "completed", "pending_payment"]),
+        Lesson.scheduled_start < scheduled_end,
+        Lesson.scheduled_end > scheduled_start
+    ).first()
+    if student_conflicts:
+        raise HTTPException(status_code=400, detail="Você já solicitou ou reservou um horário nessa faixa")
+
+    return scheduled_end, instructor.price_per_hour * duration_hours
+
+
+def create_pending_lesson(
+    db: Session,
+    student: User,
+    instructor: Instructor,
+    scheduled_start: datetime,
+    duration_hours: float
+) -> Lesson:
+    scheduled_end, total_price = validate_lesson_request(db, student, instructor, scheduled_start, duration_hours)
+
+    lesson = Lesson(
+        student_id=student.id,
+        instructor_id=instructor.id,
+        scheduled_start=scheduled_start,
+        scheduled_end=scheduled_end,
+        hour_price=instructor.price_per_hour,
+        total_price=total_price,
+        status="pending_instructor"
+    )
+    db.add(lesson)
+    db.flush()
+    return lesson
+
 @router.post("/book", response_model=LessonRead)
 def book_lesson(
     data: LessonCreate,
@@ -63,59 +139,51 @@ def book_lesson(
     if not instructor:
         raise HTTPException(status_code=404, detail="Instrutor não encontrado")
 
-    if data.scheduled_start < datetime.now():
-        raise HTTPException(status_code=400, detail="O horário deve ser no futuro")
-
-    # Availability check
-    # Align with frontend weekday (0=Sunday ... 6=Saturday)
-    weekday = (data.scheduled_start.weekday() + 1) % 7
-    availability = db.query(Availability).filter(
-        Availability.instructor_id == instructor.id,
-        Availability.weekday == weekday
-    ).all()
-    if not availability:
-        raise HTTPException(status_code=400, detail="Instrutor não disponível nesse dia")
-
-    start_time = data.scheduled_start.time()
-    end_time = (data.scheduled_start + timedelta(hours=data.duration_hours)).time()
-    in_window = False
-    for slot in availability:
-        slot_start = datetime.strptime(slot.start_time, "%H:%M").time()
-        slot_end = datetime.strptime(slot.end_time, "%H:%M").time()
-        if start_time >= slot_start and end_time <= slot_end:
-            in_window = True
-            break
-    if not in_window:
-        raise HTTPException(status_code=400, detail="Horário fora da disponibilidade do instrutor")
-
-    # Conflict check
-    scheduled_end = data.scheduled_start + timedelta(hours=data.duration_hours)
-    conflicts = db.query(Lesson).filter(
-        Lesson.instructor_id == instructor.id,
-        Lesson.status.in_(["confirmed", "completed", "pending_payment"]),
-        Lesson.scheduled_start < scheduled_end,
-        Lesson.scheduled_end > data.scheduled_start
-    ).first()
-    if conflicts:
-        raise HTTPException(status_code=400, detail="Horário já reservado com outro aluno")
-
-    total_price = instructor.price_per_hour * data.duration_hours
-
-    lesson = Lesson(
-        student_id=user.id,
-        instructor_id=instructor.id,
-        scheduled_start=data.scheduled_start,
-        scheduled_end=scheduled_end,
-        hour_price=instructor.price_per_hour,
-        total_price=total_price,
-        status="pending_instructor"
-    )
-
-    db.add(lesson)
+    lesson = create_pending_lesson(db, user, instructor, data.scheduled_start, data.duration_hours)
     db.commit()
     db.refresh(lesson)
 
     return lesson_to_read(lesson, user, instructor)
+
+
+@router.post("/book-batch", response_model=list[LessonRead])
+def book_lessons_batch(
+    data: LessonBatchCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    if user.role != "student":
+        raise HTTPException(status_code=403, detail="Apenas alunos podem agendar aulas")
+
+    instructor = db.query(Instructor).filter(
+        Instructor.id == data.instructor_id,
+        Instructor.active
+    ).first()
+    if not instructor:
+        raise HTTPException(status_code=404, detail="Instrutor não encontrado")
+
+    starts = sorted(set(data.scheduled_starts))
+    lessons: list[Lesson] = []
+    local_ranges: list[tuple[datetime, datetime]] = []
+
+    for scheduled_start in starts:
+        scheduled_end, _ = validate_lesson_request(db, user, instructor, scheduled_start, data.duration_hours)
+        overlaps_selected = any(
+            scheduled_start < existing_end and scheduled_end > existing_start
+            for existing_start, existing_end in local_ranges
+        )
+        if overlaps_selected:
+            raise HTTPException(status_code=400, detail="Os horários selecionados se sobrepõem")
+        local_ranges.append((scheduled_start, scheduled_end))
+
+    for scheduled_start in starts:
+        lessons.append(create_pending_lesson(db, user, instructor, scheduled_start, data.duration_hours))
+
+    db.commit()
+    for lesson in lessons:
+        db.refresh(lesson)
+
+    return [lesson_to_read(lesson, user, instructor) for lesson in lessons]
 
 
 @router.get("/my-bookings", response_model=list[LessonRead])

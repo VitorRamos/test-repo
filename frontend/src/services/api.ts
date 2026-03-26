@@ -1,4 +1,5 @@
 import { storage } from "../utils/storage"
+import type { AvailableDay, Availability } from "../types"
 
 const API_BASE = "/api"
 
@@ -80,6 +81,11 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data)
       }),
+    bookBatch: (data: { instructor_id: string; scheduled_starts: string[]; duration_hours: number }) =>
+      api.request("/lessons/book-batch", {
+        method: "POST",
+        body: JSON.stringify(data)
+      }),
     myBookings: () =>
       api.request("/lessons/my-bookings", { method: "GET" }).catch(() => []),
     confirmBooking: (lessonId: string) =>
@@ -131,11 +137,13 @@ export const api = {
 
     getById: (id: string) =>
       api.request(`/instructors/${id}`, { method: "GET" }),
-    getAvailableSlots: (id: string, durationHours: number) => {
+    getAvailableSlots: (id: string, params: { duration_hours: number; date_from?: string; date_to?: string }) => {
       const query = new URLSearchParams({
-        duration_hours: String(durationHours)
+        duration_hours: String(params.duration_hours)
       })
-      return api.request(`/instructors/${id}/available-slots?${query.toString()}`, { method: "GET" }).catch(() => [])
+      if (params.date_from) query.append("date_from", params.date_from)
+      if (params.date_to) query.append("date_to", params.date_to)
+      return api.request(`/instructors/${id}/available-slots?${query.toString()}`, { method: "GET" }).catch(() => [] as AvailableDay[])
     },
 
     getStats: () =>
@@ -161,8 +169,13 @@ export const api = {
     getLessons: () =>
       api.request("/instructors/my-lessons", { method: "GET" }).catch(() => []),
     getAvailability: () =>
-      api.request("/instructors/availability", { method: "GET" }).catch(() => []),
-    createAvailability: (data: { weekday: number; start_time: string; end_time: string }) =>
+      api.request("/instructors/availability", { method: "GET" }).catch(() => [] as Availability[]),
+    createAvailability: (data: {
+      start_date: string
+      end_date: string
+      weekdays: number[]
+      time_ranges: Array<{ start_time: string; end_time: string }>
+    }) =>
       api.request("/instructors/availability", {
         method: "POST",
         body: JSON.stringify(data)

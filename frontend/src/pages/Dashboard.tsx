@@ -3,6 +3,32 @@ import { api } from "../services/api"
 import type { Availability, Lesson, Review, User } from "../types"
 import "./Dashboard.css"
 
+const WEEKDAY_OPTIONS = [
+  { value: 0, label: "Dom" },
+  { value: 1, label: "Seg" },
+  { value: 2, label: "Ter" },
+  { value: 3, label: "Qua" },
+  { value: 4, label: "Qui" },
+  { value: 5, label: "Sex" },
+  { value: 6, label: "Sab" }
+]
+
+const today = new Date()
+const formatDateInput = (value: Date) => value.toISOString().split("T")[0]
+
+const isValidTimeRange = (range: { start_time: string; end_time: string }) =>
+  range.start_time !== "" && range.end_time !== "" && range.end_time > range.start_time
+
+const hasSameTimeRange = (
+  ranges: Array<{ start_time: string; end_time: string }>,
+  candidate: { start_time: string; end_time: string }
+) =>
+  ranges.some(
+    (range) =>
+      range.start_time === candidate.start_time &&
+      range.end_time === candidate.end_time
+  )
+
 interface InstructorStats {
   instructor_id: string
   total_lessons: number
@@ -33,10 +59,18 @@ export function InstructorPortal({ user }: DashboardProps) {
   const [reviews, setReviews] = useState<Review[]>([])
   const [availability, setAvailability] = useState<Availability[]>([])
   const [availabilityForm, setAvailabilityForm] = useState({
-    weekday: 1,
+    start_date: formatDateInput(today),
+    end_date: formatDateInput(new Date(today.getTime() + 1000 * 60 * 60 * 24 * 30)),
+    weekdays: [1, 2, 3, 4, 5]
+  })
+  const [timeRangeDraft, setTimeRangeDraft] = useState({
     start_time: "08:00",
     end_time: "12:00"
   })
+  const [timeRangeDraftDirty, setTimeRangeDraftDirty] = useState(false)
+  const [timeRanges, setTimeRanges] = useState<Array<{ start_time: string; end_time: string }>>([
+    { start_time: "08:00", end_time: "12:00" }
+  ])
   const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [requestError, setRequestError] = useState<string | null>(null)
@@ -131,17 +165,91 @@ export function InstructorPortal({ user }: DashboardProps) {
     event.preventDefault()
     setAvailabilityError(null)
 
-    if (availabilityForm.end_time <= availabilityForm.start_time) {
-      setAvailabilityError("Horário final deve ser maior que o horário inicial")
+    if (availabilityForm.end_date < availabilityForm.start_date) {
+      setAvailabilityError("A data final deve ser maior ou igual à inicial")
+      return
+    }
+
+    if (availabilityForm.weekdays.length === 0) {
+      setAvailabilityError("Selecione pelo menos um dia da semana")
+      return
+    }
+
+    const rangesToSave = [...timeRanges]
+    if (
+      timeRangeDraftDirty &&
+      isValidTimeRange(timeRangeDraft) &&
+      !hasSameTimeRange(rangesToSave, timeRangeDraft)
+    ) {
+      rangesToSave.push(timeRangeDraft)
+    }
+
+    if (!timeRangeDraftDirty && timeRanges.length === 0) {
+      setAvailabilityError("Adicione pelo menos uma faixa de horário")
+      return
+    }
+
+    if (timeRangeDraftDirty && !isValidTimeRange(timeRangeDraft) && timeRanges.length === 0) {
+      setAvailabilityError("Preencha uma faixa válida ou adicione pelo menos uma faixa de horário")
+      return
+    }
+
+    if (rangesToSave.length === 0) {
+      setAvailabilityError("Adicione pelo menos uma faixa de horário")
       return
     }
 
     try {
-      const created = await api.instructors.createAvailability(availabilityForm)
-      setAvailability((prev) => [...prev, created])
+      const created = await api.instructors.createAvailability({
+        ...availabilityForm,
+        time_ranges: rangesToSave
+      })
+      setAvailability((prev) => [...prev, ...created])
+      setTimeRanges(rangesToSave)
+      setTimeRangeDraft({ start_time: "08:00", end_time: "12:00" })
+      setTimeRangeDraftDirty(false)
     } catch (err) {
       setAvailabilityError(err instanceof Error ? err.message : "Falha ao salvar disponibilidade")
     }
+  }
+
+  const handleAddTimeRange = () => {
+    setAvailabilityError(null)
+    if (!isValidTimeRange(timeRangeDraft)) {
+      setAvailabilityError("Horário final deve ser maior que o horário inicial")
+      return
+    }
+
+    const exists = hasSameTimeRange(timeRanges, timeRangeDraft)
+    if (exists) {
+      setAvailabilityError("Essa faixa de horário já foi adicionada")
+      return
+    }
+
+    setTimeRanges((prev) => [...prev, timeRangeDraft])
+    setTimeRangeDraft({ start_time: "08:00", end_time: "12:00" })
+    setTimeRangeDraftDirty(false)
+  }
+
+  const handleRemoveTimeRange = (rangeToRemove: { start_time: string; end_time: string }) => {
+    setTimeRanges((prev) =>
+      prev.filter(
+        (range) =>
+          !(
+            range.start_time === rangeToRemove.start_time &&
+            range.end_time === rangeToRemove.end_time
+          )
+      )
+    )
+  }
+
+  const toggleWeekday = (weekday: number) => {
+    setAvailabilityForm((prev) => ({
+      ...prev,
+      weekdays: prev.weekdays.includes(weekday)
+        ? prev.weekdays.filter((day) => day !== weekday)
+        : [...prev.weekdays, weekday].sort((a, b) => a - b)
+    }))
   }
 
   const handleDeleteAvailability = async (id: string) => {
@@ -182,46 +290,6 @@ export function InstructorPortal({ user }: DashboardProps) {
           <p className="price">R$ {stats?.price_per_hour.toFixed(2)}/hora</p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="stats-grid span-2">
-          <div className="stat-card">
-            <div className="stat-number">{stats?.total_lessons}</div>
-            <div className="stat-label">Aulas Totais</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-number">{stats?.students_taught}</div>
-            <div className="stat-label">Alunos Ensinados</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-number">⭐ {stats?.rating.toFixed(1)}</div>
-            <div className="stat-label">Avaliação</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-number">R$ {earnings?.total_earnings.toFixed(2)}</div>
-            <div className="stat-label">Ganhos Totais</div>
-          </div>
-        </div>
-
-        {/* Earnings Section */}
-        <div className="dashboard-card earnings-card" id="ganhos">
-          <h3>💰 Ganhos</h3>
-          <div className="earnings-item">
-            <span>Ganhos Completos:</span>
-            <strong>R$ {earnings?.total_earnings.toFixed(2)}</strong>
-          </div>
-          <div className="earnings-item">
-            <span>Ganhos Pendentes:</span>
-            <strong>R$ {earnings?.pending_earnings.toFixed(2)}</strong>
-          </div>
-          <div className="earnings-item">
-            <span>Aulas Concluídas:</span>
-            <strong>{earnings?.completed_lessons}</strong>
-          </div>
-        </div>
-
         {/* Booking Requests */}
         <div className="dashboard-card actions-card" id="solicitacoes">
           <h3>📅 Solicitações de Agendamento</h3>
@@ -236,6 +304,9 @@ export function InstructorPortal({ user }: DashboardProps) {
                   <div key={lesson.id} className="booking-item">
                     <div>
                       <strong>Aula</strong> em {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
+                    </div>
+                    <div>
+                      <strong>Duração:</strong> {formatLessonDuration(lesson)}
                     </div>
                     <div>
                       <strong>Aluno:</strong> {lesson.student_email || "Não informado"}
@@ -317,6 +388,141 @@ export function InstructorPortal({ user }: DashboardProps) {
           )}
         </div>
 
+        {/* Availability */}
+        <div className="dashboard-card actions-card span-2" id="disponibilidade">
+          <h3>🕒 Disponibilidade</h3>
+          {availabilityError && <p className="confirm-error">{availabilityError}</p>}
+          <form className="availability-form" onSubmit={handleAddAvailability}>
+            <div className="availability-section">
+              <h4>Publicação</h4>
+              <div className="availability-row">
+                <label>
+                  Início do período
+                  <input
+                    type="date"
+                    value={availabilityForm.start_date}
+                    onChange={(e) =>
+                      setAvailabilityForm((prev) => ({
+                        ...prev,
+                        start_date: e.target.value
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  Fim do período
+                  <input
+                    type="date"
+                    value={availabilityForm.end_date}
+                    onChange={(e) =>
+                      setAvailabilityForm((prev) => ({
+                        ...prev,
+                        end_date: e.target.value
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="availability-hours">
+                <span className="availability-label">Horarios</span>
+                <div className="availability-row">
+                  <label>
+                    Início da faixa
+                    <input
+                      type="time"
+                      value={timeRangeDraft.start_time}
+                      onChange={(e) => {
+                        setTimeRangeDraftDirty(true)
+                        setTimeRangeDraft((prev) => ({
+                          ...prev,
+                          start_time: e.target.value
+                        }))
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Fim da faixa
+                    <input
+                      type="time"
+                      value={timeRangeDraft.end_time}
+                      onChange={(e) => {
+                        setTimeRangeDraftDirty(true)
+                        setTimeRangeDraft((prev) => ({
+                          ...prev,
+                          end_time: e.target.value
+                        }))
+                      }}
+                    />
+                  </label>
+                  <div className="availability-actions">
+                    <button className="secondary-action-btn" type="button" onClick={handleAddTimeRange}>
+                      Adicionar horario
+                    </button>
+                  </div>
+                </div>
+
+                <div className="time-range-list">
+                  <p className="availability-helper-text">
+                    Adicione varios horarios para publicar no mesmo período.
+                  </p>
+                  {timeRanges.map((range) => (
+                    <div key={`${range.start_time}-${range.end_time}`} className="time-range-item">
+                      <span>{range.start_time} - {range.end_time}</span>
+                      <button type="button" className="cancel-btn" onClick={() => handleRemoveTimeRange(range)}>
+                        Remover
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="availability-weekdays">
+                <span className="availability-label">Dias da semana</span>
+                <div className="availability-weekdays-row">
+                  <div className="weekday-picker">
+                    {WEEKDAY_OPTIONS.map((weekday) => (
+                      <button
+                        key={weekday.value}
+                        type="button"
+                        className={availabilityForm.weekdays.includes(weekday.value) ? "weekday-chip active" : "weekday-chip"}
+                        onClick={() => toggleWeekday(weekday.value)}
+                      >
+                        {weekday.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="availability-actions">
+                    <button className="action-btn availability-submit" type="submit">Publicar disponibilidade</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </form>
+
+          {availability.length === 0 ? (
+            <p>Nenhuma disponibilidade cadastrada.</p>
+          ) : (
+            <div className="availability-list">
+              {availability.map((slot) => (
+                <div key={slot.id} className="availability-item">
+                  <div className="availability-summary">
+                    <strong>{slot.start_date} ate {slot.end_date}</strong>
+                    <span>
+                      {slot.weekdays
+                        .map((day) => WEEKDAY_OPTIONS.find((option) => option.value === day)?.label || "")
+                        .join(", ")} • {slot.start_time} - {slot.end_time}
+                    </span>
+                  </div>
+                  <button className="cancel-btn" onClick={() => handleDeleteAvailability(slot.id)}>
+                    Remover
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Completed Lessons */}
         <div className="dashboard-card actions-card" id="concluidas">
           <h3>🏁 Aulas Concluídas</h3>
@@ -354,76 +560,44 @@ export function InstructorPortal({ user }: DashboardProps) {
           )}
         </div>
 
-        {/* Availability */}
-        <div className="dashboard-card actions-card span-2" id="disponibilidade">
-          <h3>🕒 Disponibilidade</h3>
-          {availabilityError && <p className="confirm-error">{availabilityError}</p>}
-          <form className="availability-form" onSubmit={handleAddAvailability}>
-            <label>
-              Dia da semana
-              <select
-                value={availabilityForm.weekday}
-                onChange={(e) =>
-                  setAvailabilityForm((prev) => ({
-                    ...prev,
-                    weekday: Number(e.target.value)
-                  }))
-                }
-              >
-                <option value={0}>Domingo</option>
-                <option value={1}>Segunda</option>
-                <option value={2}>Terça</option>
-                <option value={3}>Quarta</option>
-                <option value={4}>Quinta</option>
-                <option value={5}>Sexta</option>
-                <option value={6}>Sábado</option>
-              </select>
-            </label>
-            <label>
-              Início
-              <input
-                type="time"
-                value={availabilityForm.start_time}
-                onChange={(e) =>
-                  setAvailabilityForm((prev) => ({
-                    ...prev,
-                    start_time: e.target.value
-                  }))
-                }
-              />
-            </label>
-            <label>
-              Fim
-              <input
-                type="time"
-                value={availabilityForm.end_time}
-                onChange={(e) =>
-                  setAvailabilityForm((prev) => ({
-                    ...prev,
-                    end_time: e.target.value
-                  }))
-                }
-              />
-            </label>
-            <button className="action-btn" type="submit">Adicionar</button>
-          </form>
+        {/* Earnings Section */}
+        <div className="dashboard-card earnings-card" id="ganhos">
+          <h3>💰 Ganhos</h3>
+          <div className="earnings-item">
+            <span>Ganhos Completos:</span>
+            <strong>R$ {earnings?.total_earnings.toFixed(2)}</strong>
+          </div>
+          <div className="earnings-item">
+            <span>Ganhos Pendentes:</span>
+            <strong>R$ {earnings?.pending_earnings.toFixed(2)}</strong>
+          </div>
+          <div className="earnings-item">
+            <span>Aulas Concluídas:</span>
+            <strong>{earnings?.completed_lessons}</strong>
+          </div>
+        </div>
 
-          {availability.length === 0 ? (
-            <p>Nenhuma disponibilidade cadastrada.</p>
-          ) : (
-            <div className="availability-list">
-              {availability.map((slot) => (
-                <div key={slot.id} className="availability-item">
-                  <span>
-                    {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][slot.weekday]} • {slot.start_time} - {slot.end_time}
-                  </span>
-                  <button className="cancel-btn" onClick={() => handleDeleteAvailability(slot.id)}>
-                    Remover
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Stats Grid */}
+        <div className="stats-grid span-2">
+          <div className="stat-card">
+            <div className="stat-number">{stats?.total_lessons}</div>
+            <div className="stat-label">Aulas Totais</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-number">{stats?.students_taught}</div>
+            <div className="stat-label">Alunos Ensinados</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-number">⭐ {stats?.rating.toFixed(1)}</div>
+            <div className="stat-label">Avaliação</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-number">R$ {earnings?.total_earnings.toFixed(2)}</div>
+            <div className="stat-label">Ganhos Totais</div>
+          </div>
         </div>
 
         {/* Reviews */}

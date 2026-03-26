@@ -75,9 +75,10 @@
 }
 
 .instructor-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(220px, auto);
+  gap: 1rem;
+  align-items: start;
   border-top: 1px solid var(--border);
   padding-top: 1rem;
 }
@@ -86,6 +87,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  min-width: 0;
 }
 
 .price-label {
@@ -120,9 +122,9 @@
 
 .card-actions {
   display: flex;
+  flex-direction: column;
   gap: 0.75rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  align-items: stretch;
 }
 
 .secondary-btn {
@@ -195,11 +197,73 @@
   font-family: var(--sans);
 }
 
+.booking-range-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
 .booking-form select {
   padding: 0.6rem 0.75rem;
   border-radius: 6px;
   border: 1px solid var(--border);
   font-family: var(--sans);
+}
+
+.booking-day-grid,
+.booking-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.booking-day,
+.booking-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: var(--text-h);
+  border-radius: 10px;
+  padding: 0.85rem;
+  cursor: pointer;
+  font-family: var(--sans);
+}
+
+.booking-slot {
+  align-items: center;
+  justify-content: center;
+}
+
+.booking-day.active,
+.booking-slot.active {
+  background: #e0f2fe;
+  border-color: var(--accent);
+}
+
+.booking-day span,
+.booking-helper-text {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.selected-slot-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.selected-slot-chip {
+  border: 1px solid #bae6fd;
+  background: #e0f2fe;
+  color: #0c4a6e;
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  cursor: pointer;
 }
 
 .booking-error,
@@ -215,6 +279,10 @@
   color: #991b1b;
 }
 
+.booking-error-inline {
+  margin-top: 0;
+}
+
 .booking-success {
   background: #dcfce7;
   color: #166534;
@@ -222,8 +290,11 @@
 
 @media (max-width: 640px) {
   .instructor-footer {
-    flex-direction: column;
-    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  .booking-range-inputs {
+    grid-template-columns: 1fr;
   }
 
   .book-btn {

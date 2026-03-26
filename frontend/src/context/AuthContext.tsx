@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
 import { storage } from "../utils/storage"
 import { api } from "../services/api"
 import type { User } from "../types"
@@ -64,19 +64,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateUser = useCallback(async () => {
-  try {
-    const data = await api.auth.me()
-    const userData = {
-      email: data.email,
-      role: data.role
+    try {
+      const data = await api.auth.me()
+      const userData = {
+        email: data.email,
+        role: data.role
+      }
+      setUser(userData as User)
+      storage.setUser(userData)
+    } catch (err) {
+      console.error("Failed to update user", err)
+      logout()
     }
-    setUser(userData as User)
-    storage.setUser(userData)
-  } catch (err) {
-    console.error("Failed to update user", err)
-    logout() // optional: force logout if token invalid
-  }
-}, [logout])
+  }, [logout])
+
+  useEffect(() => {
+    const token = storage.getToken()
+    if (!token) {
+      return
+    }
+
+    void updateUser()
+  }, [updateUser])
 
   return (
     <AuthContext.Provider

@@ -67,7 +67,15 @@ export interface Availability {
   id: string
   instructor_id: string
   weekday: number
+  start_date: string | null
+  end_date: string | null
+  weekdays: number[]
   start_time: string
   end_time: string
   created_at: string
+}
+
+export interface AvailableDay {
+  date: string
+  slots: string[]
 }
