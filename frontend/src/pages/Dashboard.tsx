@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { api } from "../services/api"
 import type { Availability, Lesson, Review, User } from "../types"
 import "./Dashboard.css"
@@ -78,6 +78,7 @@ export function InstructorPortal({ user }: DashboardProps) {
   const [codeInputs, setCodeInputs] = useState<Record<string, string>>({})
   const [validatingId, setValidatingId] = useState<string | null>(null)
   const [cancelingId, setCancelingId] = useState<string | null>(null)
+  const [historyFilter, setHistoryFilter] = useState<"all" | "completed" | "cancelled">("completed")
 
   useEffect(() => {
     fetchData()
@@ -269,6 +270,18 @@ export function InstructorPortal({ user }: DashboardProps) {
 
     return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`
   }
+
+  const historicalLessons = useMemo(() => {
+    const items = lessons.filter((lesson) =>
+      historyFilter === "all"
+        ? lesson.status === "completed" || lesson.status === "cancelled"
+        : lesson.status === historyFilter
+    )
+
+    return items.sort(
+      (a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime()
+    )
+  }, [historyFilter, lessons])
 
   if (!user || user.role !== "instructor") {
     return <div className="dashboard-container"><p>Acesso negado</p></div>
@@ -525,32 +538,53 @@ export function InstructorPortal({ user }: DashboardProps) {
 
         {/* Completed Lessons */}
         <div className="dashboard-card actions-card" id="concluidas">
-          <h3>🏁 Aulas Concluídas</h3>
-          {lessons.filter((lesson) => lesson.status === "completed").length === 0 ? (
-            <p>Nenhuma aula concluída.</p>
+          <div className="section-header-with-filter">
+            <h3>🏁 Aulas Concluídas</h3>
+            <div className="section-filter">
+              <label htmlFor="history-filter">Filtrar</label>
+              <select
+                id="history-filter"
+                value={historyFilter}
+                onChange={(e) =>
+                  setHistoryFilter(e.target.value as "all" | "completed" | "cancelled")
+                }
+              >
+                <option value="all">Todas</option>
+                <option value="completed">Concluídas</option>
+                <option value="cancelled">Canceladas</option>
+              </select>
+            </div>
+          </div>
+          {historicalLessons.length === 0 ? (
+            <p>Nenhuma aula encontrada para este filtro.</p>
           ) : (
             <div className="booking-list">
-              {lessons
-                .filter((lesson) => lesson.status === "completed")
-                .map((lesson) => (
+              {historicalLessons.map((lesson) => (
                   <div key={lesson.id} className="booking-item">
                     <div>
                       <strong>Data:</strong>{" "}
                       {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
                     </div>
                     <div>
-                      <strong>Confirmado em:</strong>{" "}
-                      {lesson.code_confirmed_at
-                        ? new Date(lesson.code_confirmed_at).toLocaleString("pt-BR")
-                        : "Não informado"}
+                      <strong>Status:</strong> {lesson.status === "completed" ? "Concluída" : "Cancelada"}
                     </div>
                     <div>
                       <strong>Aluno:</strong> {lesson.student_email || "Não informado"}
                     </div>
-                    <div>
-                      <strong>Nota:</strong>{" "}
-                      {lesson.review_rating ? lesson.review_rating : "Sem avaliação"}
-                    </div>
+                    {lesson.status === "completed" && (
+                      <div>
+                        <strong>Confirmado em:</strong>{" "}
+                        {lesson.code_confirmed_at
+                          ? new Date(lesson.code_confirmed_at).toLocaleString("pt-BR")
+                          : "Não informado"}
+                      </div>
+                    )}
+                    {lesson.status === "completed" && (
+                      <div>
+                        <strong>Nota:</strong>{" "}
+                        {lesson.review_rating ? lesson.review_rating : "Sem avaliação"}
+                      </div>
+                    )}
                     <div>
                       <strong>Total:</strong> R$ {lesson.total_price.toFixed(2)}
                     </div>
