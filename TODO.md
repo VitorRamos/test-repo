@@ -2,15 +2,15 @@
 
 - Implementar fluxo de pagamento (escrow), incluindo `pending_payment` e liberação ao confirmar código.
 - Adicionar migrations para novas colunas de `lessons` e tabela `reviews` (incluindo `is_public`).
+- Adicionar migrations formais para `availability.start_date`, `availability.end_date` e `availability.days_of_week`.
 - Exibir informações do aluno para o instrutor nas listas de aulas (nome/contato).
 - Bloquear confirmação de código fora do horário da aula (regra de data/horário).
 - Permitir múltiplos horários no mesmo dia com edição inline.
 - Implementar notificações (email ou in-app) para confirmações/cancelamentos.
 - Adicionar testes E2E para disponibilidade inválida, conflitos na confirmação e horários indisponíveis.
+- Expandir E2E para booking múltiplo, filtros da central do instrutor e merge de disponibilidade.
 - Revisar ordenação e UX das listas de aulas do instrutor (pendentes, confirmadas, concluídas).
 - Exibir disponibilidade pública do instrutor de forma segura e resumida, sem expor dados desnecessários.
-- Adicionar migrations formais para `availability.start_date`, `availability.end_date` e `availability.days_of_week`.
-- Expandir E2E para booking múltiplo, filtros da central do instrutor e merge de disponibilidade.
 - Melhorar filtro do instrutores (mapa?)
 - Horario solicitacao card booking
 - Mesclar horarios que se sobrepoem instrutor
