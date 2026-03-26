@@ -17,8 +17,8 @@ export function Login() {
     setLoading(true)
 
     try {
-      await login(email, password)
-      navigate("/")
+      const response = await login(email, password)
+      navigate(response.role === "instructor" ? "/instructor" : "/")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha no login")
     } finally {

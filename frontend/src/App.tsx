@@ -6,7 +6,7 @@ import { Home } from "./pages/Home"
 import { Login } from "./pages/Login"
 import { Register } from "./pages/Register"
 import { BecomeInstructor } from "./pages/BecomeInstructor"
-import { Dashboard } from "./pages/Dashboard"
+import { InstructorPortal } from "./pages/Dashboard"
 import { MyBookings } from "./pages/MyBookings"
 import "./App.css"
 
@@ -32,7 +32,7 @@ function AppContent() {
           path="/instructor"
           element={
             <ProtectedRoute user={user} requiredRole="instructor">
-              <Dashboard user={user} />
+              <InstructorPortal user={user} />
             </ProtectedRoute>
           }
         />

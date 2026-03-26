@@ -55,7 +55,7 @@ export function BecomeInstructor({ user }: InstructorRegisterProps) {
       }
       await api.instructors.become(payload)
       await updateUser()
-      navigate("/")
+      navigate("/instructor")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha no cadastro")
     } finally {

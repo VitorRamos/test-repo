@@ -48,7 +48,7 @@ export function Navigation({ user, onLogout }: NavigationProps) {
 
               {user.role === "instructor" && (
                 <Link to="/instructor" className="nav-link">
-                  Painel
+                  Central
                 </Link>
               )}
 

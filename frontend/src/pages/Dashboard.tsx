@@ -25,7 +25,7 @@ interface DashboardProps {
   user: User | null
 }
 
-export function Dashboard({ user }: DashboardProps) {
+export function InstructorPortal({ user }: DashboardProps) {
   const [stats, setStats] = useState<InstructorStats | null>(null)
   const [earnings, setEarnings] = useState<Earnings | null>(null)
   const [loading, setLoading] = useState(true)
@@ -172,7 +172,7 @@ export function Dashboard({ user }: DashboardProps) {
 
   return (
     <div className="dashboard-container">
-      <h1>📊 Painel do Instrutor</h1>
+      <h1>📊 Central do Instrutor</h1>
 
       <div className="dashboard-grid">
         {/* Welcome Section */}
