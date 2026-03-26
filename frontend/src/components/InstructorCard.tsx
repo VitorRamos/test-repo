@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import type { Availability, BookedSlot, Instructor, Review } from "../types"
+import type { Instructor, Review } from "../types"
 import { api } from "../services/api"
 import { useAuth } from "../context/AuthContext"
 import "./InstructorCard.css"
@@ -24,8 +24,6 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
   const [availableSlots, setAvailableSlots] = useState<string[]>([])
   const [selectedSlot, setSelectedSlot] = useState("")
   const [loadingSlots, setLoadingSlots] = useState(false)
-  const [availabilityData, setAvailabilityData] = useState<Availability[]>([])
-  const [bookedData, setBookedData] = useState<BookedSlot[]>([])
 
   const handleOpenForm = () => {
     setMessage(null)
@@ -75,87 +73,15 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
     }
   }
 
-  const formatLocalDateTime = (date: Date) => {
-    const pad = (value: number) => String(value).padStart(2, "0")
-    const yyyy = date.getFullYear()
-    const mm = pad(date.getMonth() + 1)
-    const dd = pad(date.getDate())
-    const hh = pad(date.getHours())
-    const min = pad(date.getMinutes())
-    return `${yyyy}-${mm}-${dd}T${hh}:${min}`
-  }
-
-  const parseTime = (value: string) => {
-    const match = value.match(/^(\d{2}):(\d{2})/)
-    if (!match) return null
-    return [Number(match[1]), Number(match[2])]
-  }
-
-  const generateSlots = (
-    availability: Availability[],
-    booked: BookedSlot[],
-    duration: number
-  ) => {
-    const slots: string[] = []
-    const now = new Date()
-    const daysToShow = 14
-
-    for (let i = 0; i < daysToShow; i += 1) {
-      const date = new Date(now)
-      date.setDate(now.getDate() + i)
-      const weekday = date.getDay()
-      const daySlots = availability.filter((slot) => Number(slot.weekday) === weekday)
-
-      daySlots.forEach((slot) => {
-        const startParts = parseTime(slot.start_time)
-        const endParts = parseTime(slot.end_time)
-        if (!startParts || !endParts) {
-          return
-        }
-        const [startHour, startMinute] = startParts
-        const [endHour, endMinute] = endParts
-        const start = new Date(date)
-        start.setHours(startHour, startMinute, 0, 0)
-        const end = new Date(date)
-        end.setHours(endHour, endMinute, 0, 0)
-
-        let cursor = new Date(start)
-        while (cursor.getTime() + duration * 60 * 60 * 1000 <= end.getTime()) {
-          const candidateStart = new Date(cursor)
-          const candidateEnd = new Date(cursor.getTime() + duration * 60 * 60 * 1000)
-
-          const overlaps = booked.some((b) => {
-            const bStart = new Date(b.scheduled_start)
-            const bEnd = new Date(b.scheduled_end)
-            return candidateStart < bEnd && candidateEnd > bStart
-          })
-
-          if (!overlaps && candidateStart > now) {
-            slots.push(formatLocalDateTime(candidateStart))
-          }
-          cursor = new Date(cursor.getTime() + 60 * 60 * 1000)
-        }
-      })
-    }
-
-    return slots
-  }
-
   const loadSlots = async () => {
     setLoadingSlots(true)
     try {
-      const [availability, booked] = await Promise.all([
-        api.instructors.getPublicAvailability(instructor.id),
-        api.lessons.getBookedForInstructor(instructor.id)
-      ])
-      const availabilityList = availability || []
-      const bookedList = booked || []
-      setAvailabilityData(availabilityList)
-      setBookedData(bookedList)
-      const slots = generateSlots(availabilityList, bookedList, durationHours)
+      const slots = await api.instructors.getAvailableSlots(instructor.id, durationHours)
       setAvailableSlots(slots)
       if (slots.length > 0) {
         setSelectedSlot(slots[0])
+      } else {
+        setSelectedSlot("")
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao carregar horários.")
@@ -166,14 +92,8 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
 
   useEffect(() => {
     if (!showForm) return
-    const slots = generateSlots(availabilityData, bookedData, durationHours)
-    setAvailableSlots(slots)
-    if (slots.length > 0) {
-      setSelectedSlot(slots[0])
-    } else {
-      setSelectedSlot("")
-    }
-  }, [durationHours, showForm, availabilityData, bookedData])
+    void loadSlots()
+  }, [durationHours, showForm])
 
   const toggleReviews = async () => {
     if (showReviews) {
@@ -203,9 +123,6 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
     }
     const nextShow = !showForm
     setShowForm(nextShow)
-    if (nextShow) {
-      await loadSlots()
-    }
   }
 
   return (

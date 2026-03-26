@@ -11,7 +11,7 @@ from backend.app.models.lesson import Lesson
 from backend.app.models.user import User
 from backend.app.models.review import Review
 from backend.app.models.availability import Availability
-from backend.app.schemas.lesson import LessonCreate, LessonRead, LessonConfirmCode, LessonBookedRead
+from backend.app.schemas.lesson import LessonCreate, LessonRead, LessonConfirmCode
 
 router = APIRouter()
 
@@ -143,25 +143,6 @@ def get_my_bookings(
         )
         for lesson in lessons
     ]
-
-
-@router.get("/instructor/{instructor_id}/booked", response_model=list[LessonBookedRead])
-def get_instructor_booked(
-    instructor_id: str,
-    db: Session = Depends(get_db)
-):
-    lessons = db.query(Lesson).filter(
-        Lesson.instructor_id == instructor_id,
-        Lesson.status.in_(["confirmed", "completed", "pending_payment"])
-    ).all()
-    return [
-        LessonBookedRead(
-            scheduled_start=lesson.scheduled_start,
-            scheduled_end=lesson.scheduled_end
-        )
-        for lesson in lessons
-    ]
-
 
 @router.post("/{lesson_id}/confirm", response_model=LessonRead)
 def confirm_booking(

@@ -6,7 +6,7 @@ from backend.app.models.lesson import Lesson
 from backend.app.models.review import Review
 from backend.app.models.instructor import Instructor
 from backend.app.models.user import User
-from backend.app.schemas.review import ReviewCreate, ReviewRead, ReviewUpdate
+from backend.app.schemas.review import ReviewCreate, ReviewRead
 
 router = APIRouter()
 
@@ -84,55 +84,6 @@ def get_review_for_lesson(
         is_public=review.is_public,
         created_at=review.created_at
     )
-
-
-@router.put("/{review_id}", response_model=ReviewRead)
-def update_review(
-    review_id: str,
-    data: ReviewUpdate,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
-):
-    if user.role != "student":
-        raise HTTPException(status_code=403, detail="Apenas alunos podem editar avaliações")
-
-    review = db.query(Review).filter(Review.id == review_id).first()
-    if not review or review.student_id != user.id:
-        raise HTTPException(status_code=404, detail="Avaliação não encontrada")
-
-    lesson = db.query(Lesson).filter(Lesson.id == review.lesson_id).first()
-    if not lesson or lesson.status != "completed":
-        raise HTTPException(status_code=400, detail="Aula ainda não foi concluída")
-
-    review.rating = data.rating
-    review.comment = data.comment
-    review.is_public = data.is_public
-
-    # Recalculate instructor rating
-    reviews = db.query(Review).filter(Review.instructor_id == review.instructor_id).all()
-    if reviews:
-        total = sum(r.rating for r in reviews)
-        instructor = db.query(Instructor).filter(Instructor.id == review.instructor_id).first()
-        if instructor:
-            instructor.rating = total / len(reviews)
-            db.add(instructor)
-
-    db.add(review)
-    db.commit()
-    db.refresh(review)
-
-    return ReviewRead(
-        id=review.id,
-        lesson_id=review.lesson_id,
-        student_id=review.student_id,
-        instructor_id=review.instructor_id,
-        rating=review.rating,
-        comment=review.comment,
-        student_email=user.email,
-        is_public=review.is_public,
-        created_at=review.created_at
-    )
-
 
 @router.get("/instructor/{instructor_id}", response_model=list[ReviewRead])
 def get_reviews_for_instructor(

@@ -94,9 +94,7 @@ export const api = {
     cancelLesson: (lessonId: string) =>
       api.request(`/lessons/${lessonId}/cancel`, {
         method: "POST"
-      }),
-    getBookedForInstructor: (instructorId: string) =>
-      api.request(`/lessons/instructor/${instructorId}/booked`, { method: "GET" }).catch(() => [])
+      })
   },
   reviews: {
     create: (data: { lesson_id: string; rating: number; comment?: string; is_public?: boolean }) =>
@@ -108,11 +106,6 @@ export const api = {
       api.request(`/reviews/instructor/${instructorId}`, { method: "GET" }).catch(() => []),
     getByLesson: (lessonId: string) =>
       api.request(`/reviews/lesson/${lessonId}`, { method: "GET" }),
-    update: (reviewId: string, data: { rating: number; comment?: string; is_public?: boolean }) =>
-      api.request(`/reviews/${reviewId}`, {
-        method: "PUT",
-        body: JSON.stringify(data)
-      }),
     getPublicByInstructor: (instructorId: string) =>
       api.request(`/reviews/public/${instructorId}`, { method: "GET" }).catch(() => [])
   },
@@ -138,8 +131,12 @@ export const api = {
 
     getById: (id: string) =>
       api.request(`/instructors/${id}`, { method: "GET" }),
-    getPublicAvailability: (id: string) =>
-      api.request(`/instructors/${id}/availability`, { method: "GET" }).catch(() => []),
+    getAvailableSlots: (id: string, durationHours: number) => {
+      const query = new URLSearchParams({
+        duration_hours: String(durationHours)
+      })
+      return api.request(`/instructors/${id}/available-slots?${query.toString()}`, { method: "GET" }).catch(() => [])
+    },
 
     getStats: () =>
       api.request("/instructors/stats", { method: "GET" }).catch(() => ({

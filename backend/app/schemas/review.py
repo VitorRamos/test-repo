@@ -20,12 +20,3 @@ class ReviewRead(BaseModel):
     student_email: str | None = None
     is_public: bool
     created_at: datetime
-
-
-class ReviewUpdate(BaseModel):
-    rating: int = Field(ge=1, le=5)
-    comment: str | None = None
-    is_public: bool = True
-
-    class Config:
-        from_attributes = True

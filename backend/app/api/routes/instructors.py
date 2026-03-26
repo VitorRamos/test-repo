@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
@@ -12,6 +14,47 @@ from backend.app.schemas.availability import AvailabilityCreate, AvailabilityRea
 from backend.app.schemas.lesson import LessonRead
 
 router = APIRouter()
+
+
+def get_available_slots_for_instructor(
+    db: Session,
+    instructor_id: str,
+    duration_hours: float,
+    days_to_show: int = 14
+) -> list[str]:
+    duration_delta = timedelta(hours=duration_hours)
+    now = datetime.now()
+    availability = db.query(Availability).filter(Availability.instructor_id == instructor_id).all()
+    booked_lessons = db.query(Lesson).filter(
+        Lesson.instructor_id == instructor_id,
+        Lesson.status.in_(["confirmed", "completed", "pending_payment"])
+    ).all()
+
+    slots: list[str] = []
+    for i in range(days_to_show):
+        date = now + timedelta(days=i)
+        weekday = (date.weekday() + 1) % 7
+        day_slots = [slot for slot in availability if int(slot.weekday) == weekday]
+
+        for slot in day_slots:
+            start = datetime.combine(date.date(), datetime.strptime(slot.start_time, "%H:%M").time())
+            end = datetime.combine(date.date(), datetime.strptime(slot.end_time, "%H:%M").time())
+            cursor = start
+
+            while cursor + duration_delta <= end:
+                candidate_start = cursor
+                candidate_end = cursor + duration_delta
+                overlaps = any(
+                    candidate_start < lesson.scheduled_end and candidate_end > lesson.scheduled_start
+                    for lesson in booked_lessons
+                )
+
+                if not overlaps and candidate_start > now:
+                    slots.append(candidate_start.strftime("%Y-%m-%dT%H:%M"))
+
+                cursor += timedelta(hours=1)
+
+    return slots
 
 
 @router.post("/", response_model=InstructorRead)
@@ -230,15 +273,16 @@ def delete_availability(
     return {"status": "ok"}
 
 
-@router.get("/{instructor_id}/availability", response_model=list[AvailabilityRead])
-def get_public_availability(
+@router.get("/{instructor_id}/available-slots", response_model=list[str])
+def get_public_available_slots(
     instructor_id: str,
+    duration_hours: float = Query(1, gt=0),
     db: Session = Depends(get_db)
 ):
     instructor = db.query(Instructor).filter(Instructor.id == instructor_id).first()
     if not instructor:
         raise HTTPException(status_code=404, detail="Instrutor não encontrado")
-    return db.query(Availability).filter(Availability.instructor_id == instructor.id).all()
+    return get_available_slots_for_instructor(db, str(instructor.id), duration_hours)
 
 
 @router.get("/{instructor_id}", response_model=InstructorRead)
