@@ -26,9 +26,22 @@ Use this file as a quick map of the codebase and conventions.
 
 ## Current Booking Flow
 
-- Student creates a booking: lesson status `pending_instructor`
+- Student can request one or multiple lesson slots in one action
+- Student booking request creates lessons with status `pending_instructor`
 - Instructor confirms booking: lesson status `confirmed`
-- Student can view all bookings in the "Meus Agendamentos" page
+- Instructor validates the lesson code: lesson status `completed`
+- Student can cancel pending or confirmed bookings from "Meus Agendamentos"
+- Instructor can cancel pending or confirmed bookings from "Central do Instrutor"
+- Student can view and filter bookings in the "Meus Agendamentos" page
+
+## Current Availability Flow
+
+- Instructor availability is configured by:
+- `start_date` and `end_date`
+- selected weekdays
+- one or more time ranges
+- Overlapping or adjacent availability for the same period and weekdays is merged on save
+- Public student slots are generated from instructor availability and existing confirmed/completed bookings
 
 ## API Overview
 
@@ -40,6 +53,13 @@ Use this file as a quick map of the codebase and conventions.
 - `GET /api/instructors/my-lessons`
 - `GET /api/instructors/stats`
 - `GET /api/instructors/earnings`
+- `GET /api/instructors/availability`
+- `POST /api/instructors/availability`
+- `DELETE /api/instructors/availability/{availability_id}`
+- `GET /api/instructors/{instructor_id}/available-slots`
 - `POST /api/lessons/book`
+- `POST /api/lessons/book-batch`
 - `POST /api/lessons/{lesson_id}/confirm`
+- `POST /api/lessons/{lesson_id}/confirm-code`
+- `POST /api/lessons/{lesson_id}/cancel`
 - `GET /api/lessons/my-bookings`

@@ -46,7 +46,9 @@ payment after lesson confirmation
 -   Create profile
 -   Upload DETRAN license
 -   Set hourly price
--   Configure availability
+-   Configure availability by period, weekdays and multiple time ranges
+-   Merge overlapping availability ranges
+-   Review pending, confirmed, completed and cancelled lessons
 -   Confirm lesson codes
 -   Receive payments
 
@@ -137,13 +139,23 @@ Fields:
 -   id (uuid pk)
 -   instructor_id
 -   weekday
+-   start_date
+-   end_date
+-   days_of_week
 -   start_time
 -   end_time
 
 Example:
 
-Monday\
+2026-04-01 to 2026-04-30\
+Monday, Wednesday, Friday\
 08:00 - 12:00
+
+Notes:
+
+-   Availability is period-based and recurring by weekday
+-   Multiple time ranges can exist for the same period
+-   Overlapping or adjacent ranges for the same period and weekdays should be merged
 
 ------------------------------------------------------------------------
 
@@ -239,6 +251,7 @@ Fields:
 -   instructor_id
 -   rating
 -   comment
+-   is_public
 -   created_at
 
 ------------------------------------------------------------------------
@@ -270,6 +283,12 @@ Step 1: Student requests lesson (booking)
 
 lesson.status = pending_instructor
 
+Notes:
+
+-   A student can request multiple lesson slots in one action
+-   Overlapping requests from the same student should be rejected
+-   Pending instructor requests do not block another student until one booking is confirmed
+
 Step 2: Instructor confirms booking
 
 lesson.status = confirmed
@@ -287,6 +306,10 @@ Step 5: Instructor confirms code
 
 lesson_codes.confirmed = true\
 lesson.status = completed
+
+If a lesson is cancelled before completion:
+
+lesson.status = cancelled
 
 Step 6: Payment released
 
