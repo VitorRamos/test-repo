@@ -39,7 +39,8 @@ export function Dashboard({ user }: DashboardProps) {
   })
   const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
-  const [confirmError, setConfirmError] = useState<string | null>(null)
+  const [requestError, setRequestError] = useState<string | null>(null)
+  const [confirmedError, setConfirmedError] = useState<string | null>(null)
   const [codeInputs, setCodeInputs] = useState<Record<string, string>>({})
   const [validatingId, setValidatingId] = useState<string | null>(null)
   const [cancelingId, setCancelingId] = useState<string | null>(null)
@@ -77,12 +78,12 @@ export function Dashboard({ user }: DashboardProps) {
 
   const handleConfirm = async (lessonId: string) => {
     setConfirmingId(lessonId)
-    setConfirmError(null)
+    setRequestError(null)
     try {
       await api.lessons.confirmBooking(lessonId)
       await fetchData()
     } catch (err) {
-      setConfirmError(err instanceof Error ? err.message : "Falha ao confirmar agendamento")
+      setRequestError(err instanceof Error ? err.message : "Falha ao confirmar agendamento")
     } finally {
       setConfirmingId(null)
     }
@@ -90,14 +91,14 @@ export function Dashboard({ user }: DashboardProps) {
 
   const handleValidateCode = async (lessonId: string) => {
     setValidatingId(lessonId)
-    setConfirmError(null)
+    setConfirmedError(null)
     try {
       const code = codeInputs[lessonId] || ""
       await api.lessons.confirmCode(lessonId, code)
       setCodeInputs((prev) => ({ ...prev, [lessonId]: "" }))
       await fetchData()
     } catch (err) {
-      setConfirmError(err instanceof Error ? err.message : "Falha ao validar código")
+      setConfirmedError(err instanceof Error ? err.message : "Falha ao validar código")
     } finally {
       setValidatingId(null)
     }
@@ -105,12 +106,22 @@ export function Dashboard({ user }: DashboardProps) {
 
   const handleCancel = async (lessonId: string) => {
     setCancelingId(lessonId)
-    setConfirmError(null)
+    const lesson = lessons.find((item) => item.id === lessonId)
+    if (lesson?.status === "confirmed") {
+      setConfirmedError(null)
+    } else {
+      setRequestError(null)
+    }
     try {
       await api.lessons.cancelLesson(lessonId)
       await fetchData()
     } catch (err) {
-      setConfirmError(err instanceof Error ? err.message : "Falha ao cancelar aula")
+      const message = err instanceof Error ? err.message : "Falha ao cancelar aula"
+      if (lesson?.status === "confirmed") {
+        setConfirmedError(message)
+      } else {
+        setRequestError(message)
+      }
     } finally {
       setCancelingId(null)
     }
@@ -143,11 +154,12 @@ export function Dashboard({ user }: DashboardProps) {
     }
   }
 
-  const scrollToSection = (id: string) => {
-    const target = document.getElementById(id)
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" })
-    }
+  const formatLessonDuration = (lesson: Lesson) => {
+    const hours =
+      (new Date(lesson.scheduled_end).getTime() - new Date(lesson.scheduled_start).getTime()) /
+      (1000 * 60 * 60)
+
+    return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`
   }
 
   if (!user || user.role !== "instructor") {
@@ -213,7 +225,7 @@ export function Dashboard({ user }: DashboardProps) {
         {/* Booking Requests */}
         <div className="dashboard-card actions-card" id="solicitacoes">
           <h3>📅 Solicitações de Agendamento</h3>
-          {confirmError && <p className="confirm-error">{confirmError}</p>}
+          {requestError && <p className="confirm-error">{requestError}</p>}
           {lessons.filter((lesson) => lesson.status === "pending_instructor").length === 0 ? (
             <p>Nenhuma solicitação pendente.</p>
           ) : (
@@ -253,6 +265,7 @@ export function Dashboard({ user }: DashboardProps) {
         {/* Confirmed Lessons */}
         <div className="dashboard-card actions-card" id="confirmadas">
           <h3>✅ Aulas Confirmadas</h3>
+          {confirmedError && <p className="confirm-error">{confirmedError}</p>}
           {lessons.filter((lesson) => lesson.status === "confirmed").length === 0 ? (
             <p>Nenhuma aula confirmada.</p>
           ) : (
@@ -264,6 +277,9 @@ export function Dashboard({ user }: DashboardProps) {
                     <div>
                       <strong>Data:</strong>{" "}
                       {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
+                    </div>
+                    <div>
+                      <strong>Duração:</strong> {formatLessonDuration(lesson)}
                     </div>
                     <div>
                       <strong>Aluno:</strong> {lesson.student_email || "Não informado"}
@@ -336,31 +352,6 @@ export function Dashboard({ user }: DashboardProps) {
                 ))}
             </div>
           )}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="dashboard-card actions-card span-2">
-          <h3>⚡ Ações Rápidas</h3>
-          <div className="actions-list">
-            <button className="action-btn" onClick={() => scrollToSection("solicitacoes")}>
-              📅 Solicitações
-            </button>
-            <button className="action-btn" onClick={() => scrollToSection("confirmadas")}>
-              ✅ Confirmar Códigos
-            </button>
-            <button className="action-btn" onClick={() => scrollToSection("concluidas")}>
-              🏁 Aulas Concluídas
-            </button>
-            <button className="action-btn" onClick={() => scrollToSection("ganhos")}>
-              💰 Ganhos
-            </button>
-            <button className="action-btn" onClick={() => scrollToSection("avaliacoes")}>
-              ⭐ Avaliações
-            </button>
-            <button className="action-btn" onClick={() => scrollToSection("disponibilidade")}>
-              🕒 Disponibilidade
-            </button>
-          </div>
         </div>
 
         {/* Availability */}
