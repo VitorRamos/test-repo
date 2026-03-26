@@ -12,8 +12,8 @@
 - Revisar ordenação e UX das listas de aulas do instrutor (pendentes, confirmadas, concluídas).
 - Exibir disponibilidade pública do instrutor de forma segura e resumida, sem expor dados desnecessários.
 - Melhorar filtro do instrutores (mapa?)
-- Horario solicitacao card booking
 - Mesclar horarios que se sobrepoem instrutor
+- Horario solicitacao card booking
 - Mostrar instructores que solicitei no card da tela inicial
 - Nao mudar muito de tamanho ao selecionar varias datas card inicial
 - Criar um calendario mostrando os dias que tenho aula (mesma coisa para o instrutor)
