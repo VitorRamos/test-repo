@@ -178,17 +178,6 @@ def get_instructor_stats(
     }
 
 
-@router.get("/{instructor_id}", response_model=InstructorRead)
-def get_instructor(
-    instructor_id: str,
-    db: Session = Depends(get_db)
-):
-    instructor = db.query(Instructor).filter(Instructor.id == instructor_id).first()
-    if not instructor:
-        raise HTTPException(status_code=404, detail="Instrutor não encontrado")
-    return instructor
-
-
 @router.get("/availability", response_model=list[AvailabilityRead])
 def get_availability(
     db: Session = Depends(get_db),
@@ -239,3 +228,25 @@ def delete_availability(
     db.delete(availability)
     db.commit()
     return {"status": "ok"}
+
+
+@router.get("/{instructor_id}/availability", response_model=list[AvailabilityRead])
+def get_public_availability(
+    instructor_id: str,
+    db: Session = Depends(get_db)
+):
+    instructor = db.query(Instructor).filter(Instructor.id == instructor_id).first()
+    if not instructor:
+        raise HTTPException(status_code=404, detail="Instrutor não encontrado")
+    return db.query(Availability).filter(Availability.instructor_id == instructor.id).all()
+
+
+@router.get("/{instructor_id}", response_model=InstructorRead)
+def get_instructor(
+    instructor_id: str,
+    db: Session = Depends(get_db)
+):
+    instructor = db.query(Instructor).filter(Instructor.id == instructor_id).first()
+    if not instructor:
+        raise HTTPException(status_code=404, detail="Instrutor não encontrado")
+    return instructor

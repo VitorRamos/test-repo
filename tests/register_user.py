@@ -118,16 +118,39 @@ def logout(driver):
         time.sleep(DELAY_SHORT)
 
 
-def format_datetime_for_input(dt):
-    return dt.strftime("%m%d00%Y%H%MP")
-
-
 def get_future_datetime_local():
     future_time = (datetime.now() + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
-    return format_datetime_for_input(future_time)
+    return future_time.strftime("%m%d00%Y%H%MP")
 
 
 def book_instructor_by_name(driver, instructor_name, start_override=None, duration_override=None):
+    target, date_input, duration_input = open_booking_form_by_name(driver, instructor_name)
+
+    duration_input.clear()
+    duration_input.send_keys(duration_override or "2")
+    time.sleep(DELAY_SHORT)
+
+    date_input = target.find_element(By.CSS_SELECTOR, "select")
+    options = date_input.find_elements(By.TAG_NAME, "option")
+
+    if start_override:
+        for option in options:
+            if start_override in option.text or option.get_attribute("value") == start_override:
+                option.click()
+                break
+        else:
+            return False
+    elif options and options[0].get_attribute("value"):
+        options[0].click()
+    else:
+        return False
+
+    target.find_element(By.CSS_SELECTOR, "form.booking-form button[type='submit']").click()
+    time.sleep(DELAY_SHORT)
+    return True
+
+
+def open_booking_form_by_name(driver, instructor_name):
     cards = driver.find_elements(By.CLASS_NAME, "instructor-card")
     assert len(cards) > 0
     target = None
@@ -147,25 +170,18 @@ def book_instructor_by_name(driver, instructor_name, start_override=None, durati
     date_input = None
     duration_input = None
     for _ in range(6):
-        inputs = target.find_elements(By.CSS_SELECTOR, "input[type='datetime-local']")
+        inputs = target.find_elements(By.CSS_SELECTOR, "select")
         number_inputs = target.find_elements(By.CSS_SELECTOR, "input[type='number']")
         if inputs and number_inputs:
             date_input = inputs[0]
             duration_input = number_inputs[0]
             break
-        # try clicking again in case the form didn't toggle
         driver.execute_script("arguments[0].click();", book_button)
         time.sleep(DELAY_SHORT)
+
     assert date_input is not None
     assert duration_input is not None
-
-    date_input.clear()
-    date_input.send_keys(start_override or get_future_datetime_local())
-    duration_input.clear()
-    duration_input.send_keys(duration_override or "2")
-
-    target.find_element(By.CSS_SELECTOR, "form.booking-form button[type='submit']").click()
-    time.sleep(DELAY_SHORT)
+    return target, date_input, duration_input
 
 
 def confirm_first_booking(driver):
@@ -185,8 +201,52 @@ def confirm_first_booking(driver):
     time.sleep(DELAY_SHORT)
 
 
+def confirm_booking_for_student(driver, student_email):
+    driver.find_element(By.LINK_TEXT, "Painel").click()
+    time.sleep(DELAY_SHORT)
+
+    section = driver.find_element(By.ID, "solicitacoes")
+    items = section.find_elements(By.CLASS_NAME, "booking-item")
+    target = None
+    for item in items:
+        if student_email in item.text:
+            target = item
+            break
+
+    assert target is not None
+    buttons = target.find_elements(By.TAG_NAME, "button")
+    confirm_button = None
+    for button in buttons:
+        if "Confirmar" in button.text:
+            confirm_button = button
+            break
+
+    assert confirm_button is not None
+    confirm_button.click()
+    time.sleep(DELAY_SHORT)
+
+
 def go_to_my_bookings(driver):
     driver.find_element(By.LINK_TEXT, "Minhas Aulas").click()
+    time.sleep(DELAY_SHORT)
+
+def add_availability(driver, weekday, start_time, end_time):
+    driver.find_element(By.LINK_TEXT, "Painel").click()
+    time.sleep(DELAY_SHORT)
+
+    select = driver.find_element(By.TAG_NAME, "select")
+    for option in select.find_elements(By.TAG_NAME, "option"):
+        if option.get_attribute("value") == str(weekday):
+            option.click()
+            break
+
+    time_inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='time']")
+    time_inputs[0].clear()
+    time_inputs[0].send_keys(start_time)
+    time_inputs[1].clear()
+    time_inputs[1].send_keys(end_time)
+
+    driver.find_element(By.CSS_SELECTOR, ".availability-form .action-btn").click()
     time.sleep(DELAY_SHORT)
 
 def get_confirmation_code_from_my_bookings(driver):
@@ -413,11 +473,14 @@ def test_booking_flow():
         instructor_name = f"Instrutor {instructor_email.split('@')[0]}"
         fill_instructor_form(driver, instructor_name)
         submit_form(driver)
+        weekday = (datetime.now() + timedelta(days=1)).weekday()
+        add_availability(driver, weekday, "0800A", "1200P")
         logout(driver)
 
         # Create student and book lesson
         register_and_login(driver, student_email, password)
-        book_instructor_by_name(driver, instructor_name)
+        booked = book_instructor_by_name(driver, instructor_name)
+        assert booked
 
         body = get_body(driver)
         assert "Agendamento enviado" in body
@@ -476,11 +539,14 @@ def test_cancel_booking_flow():
         instructor_name = f"Instrutor {instructor_email.split('@')[0]}"
         fill_instructor_form(driver, instructor_name)
         submit_form(driver)
+        weekday = (datetime.now() + timedelta(days=1)).weekday()
+        add_availability(driver, weekday, "0800A", "1200P")
         logout(driver)
 
         # Create student and book lesson
         register_and_login(driver, student_email, password)
-        book_instructor_by_name(driver, instructor_name)
+        booked = book_instructor_by_name(driver, instructor_name)
+        assert booked
 
         body = get_body(driver)
         assert "Agendamento enviado" in body
@@ -512,36 +578,23 @@ def test_instructor_availability_blocks_booking():
         fill_instructor_form(driver, instructor_name)
         submit_form(driver)
 
-        driver.find_element(By.LINK_TEXT, "Painel").click()
-        time.sleep(DELAY_SHORT)
-
         weekday = (datetime.now() + timedelta(days=1)).weekday()
-        select = driver.find_element(By.TAG_NAME, "select")
-        for option in select.find_elements(By.TAG_NAME, "option"):
-            if option.get_attribute("value") == str(weekday):
-                option.click()
-                break
-
-        time_inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='time']")
-        time_inputs[0].clear()
-        time_inputs[0].send_keys("08:00P")
-        time_inputs[1].clear()
-        time_inputs[1].send_keys("09:00P")
-
-        driver.find_element(By.CSS_SELECTOR, ".availability-form .action-btn").click()
-        time.sleep(DELAY_SHORT)
+        add_availability(driver, weekday, "0800A", "0900A")
 
         logout(driver)
 
-        # Student tries to book outside availability (tomorrow 10:00)
+        # Student requests a 2-hour lesson, but the instructor only has a 1-hour window.
         register_and_login(driver, student_email, password)
-        outside_time_dt = (datetime.now() + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
-        outside_time = format_datetime_for_input(outside_time_dt)
-        book_instructor_by_name(driver, instructor_name, outside_time)
+        _, date_input, duration_input = open_booking_form_by_name(driver, instructor_name)
+        duration_input.clear()
+        duration_input.send_keys("2")
+        time.sleep(DELAY_SHORT)
 
-        body = get_body(driver)
-        assert "Horário fora da disponibilidade" in body or "Instrutor não disponível" in body
-        print("✅ Availability blocks out-of-slot booking")
+        options = date_input.find_elements(By.TAG_NAME, "option")
+        assert len(options) == 1
+        assert options[0].get_attribute("value") == ""
+        assert "Nenhum horário disponível" in options[0].text
+        print("✅ Availability prevents selecting an oversized lesson")
 
     finally:
         close_driver(driver)
@@ -564,43 +617,66 @@ def test_instructor_conflict_booking():
         fill_instructor_form(driver, instructor_name)
         submit_form(driver)
 
-        driver.find_element(By.LINK_TEXT, "Painel").click()
-        time.sleep(DELAY_SHORT)
-
         weekday = (datetime.now() + timedelta(days=1)).weekday()
-        select = driver.find_element(By.TAG_NAME, "select")
-        for option in select.find_elements(By.TAG_NAME, "option"):
-            if option.get_attribute("value") == str(weekday):
-                option.click()
-                break
-
-        time_inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='time']")
-        time_inputs[0].clear()
-        time_inputs[0].send_keys("08:00P")
-        time_inputs[1].clear()
-        time_inputs[1].send_keys("12:00P")
-
-        driver.find_element(By.CSS_SELECTOR, ".availability-form .action-btn").click()
-        time.sleep(DELAY_SHORT)
+        add_availability(driver, weekday, "0800A", "1200P")
 
         logout(driver)
 
         # Student 1 books at 10:00 for 2 hours
         register_and_login(driver, student1_email, password)
-        start1_dt = (datetime.now() + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
-        start1 = format_datetime_for_input(start1_dt)
-        book_instructor_by_name(driver, instructor_name, start1, "2")
+        booked = book_instructor_by_name(driver, instructor_name, "10:00", "2")
+        assert booked
+        body = get_body(driver)
+        assert "Agendamento enviado" in body
         logout(driver)
 
-        # Student 2 tries overlapping booking at 11:00 for 1 hour
+        # Student 2 can still create an overlapping pending request at 11:00 for 1 hour
         register_and_login(driver, student2_email, password)
-        start2_dt = (datetime.now() + timedelta(days=1)).replace(hour=11, minute=0, second=0, microsecond=0)
-        start2 = format_datetime_for_input(start2_dt)
-        book_instructor_by_name(driver, instructor_name, start2, "1")
+        booked = book_instructor_by_name(driver, instructor_name, "11:00", "1")
+        body = get_body(driver)
+        assert booked
+        assert "Agendamento enviado" in body
+        logout(driver)
+
+        # Instructor confirms the first request
+        login(driver, instructor_email, password)
+        confirm_booking_for_student(driver, student1_email)
+        body = get_body(driver)
+        assert "Confirmada" in body or "confirmadas" in body.lower()
+        assert student2_email not in driver.find_element(By.ID, "solicitacoes").text
+        logout(driver)
+
+        # The overlapping pending request is automatically cancelled
+        login(driver, student2_email, password)
+        go_to_my_bookings(driver)
+        body = get_body(driver)
+        assert "Cancelada" in body
+        print("✅ Conflicting pending booking cancelled after confirmation")
+
+    finally:
+        close_driver(driver)
+
+
+def test_instructor_invalid_availability_rejected():
+    driver = create_driver()
+    driver.get(BASE_URL)
+
+    email = generate_email()
+    password = "123123123"
+
+    try:
+        register_and_login(driver, email, password)
+        go_to_become_instructor(driver)
+        fill_instructor_form(driver)
+        submit_form(driver)
+
+        weekday = (datetime.now() + timedelta(days=1)).weekday()
+        add_availability(driver, weekday, "1200P", "0800A")
 
         body = get_body(driver)
-        assert ("Horário já reservado" in body) or ("Horário fora da disponibilidade" in body) or ("Instrutor não disponível" in body)
-        print("✅ Conflict booking prevented")
+        assert "Horário final deve ser maior que o horário inicial" in body
+        assert "Nenhuma disponibilidade cadastrada." in body
+        print("✅ Invalid availability is rejected")
 
     finally:
         close_driver(driver)
@@ -623,6 +699,7 @@ if __name__ == "__main__":
         "cancel_booking_flow": test_cancel_booking_flow,
         "availability_blocks_booking": test_instructor_availability_blocks_booking,
         "conflict_booking": test_instructor_conflict_booking,
+        "invalid_availability": test_instructor_invalid_availability_rejected,
     }
 
     parser = argparse.ArgumentParser(description="Run E2E tests")

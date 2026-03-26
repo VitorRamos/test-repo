@@ -94,7 +94,9 @@ export const api = {
     cancelLesson: (lessonId: string) =>
       api.request(`/lessons/${lessonId}/cancel`, {
         method: "POST"
-      })
+      }),
+    getBookedForInstructor: (instructorId: string) =>
+      api.request(`/lessons/instructor/${instructorId}/booked`, { method: "GET" }).catch(() => [])
   },
   reviews: {
     create: (data: { lesson_id: string; rating: number; comment?: string; is_public?: boolean }) =>
@@ -136,6 +138,8 @@ export const api = {
 
     getById: (id: string) =>
       api.request(`/instructors/${id}`, { method: "GET" }),
+    getPublicAvailability: (id: string) =>
+      api.request(`/instructors/${id}/availability`, { method: "GET" }).catch(() => []),
 
     getStats: () =>
       api.request("/instructors/stats", { method: "GET" }).catch(() => ({

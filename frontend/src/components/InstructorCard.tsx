@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import type { Instructor, Review } from "../types"
+import type { Availability, BookedSlot, Instructor, Review } from "../types"
 import { api } from "../services/api"
 import { useAuth } from "../context/AuthContext"
 import "./InstructorCard.css"
@@ -14,7 +14,6 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [showForm, setShowForm] = useState(false)
-  const [scheduledStart, setScheduledStart] = useState("")
   const [durationHours, setDurationHours] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -22,6 +21,11 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
   const [reviews, setReviews] = useState<Review[]>([])
   const [showReviews, setShowReviews] = useState(false)
   const [loadingReviews, setLoadingReviews] = useState(false)
+  const [availableSlots, setAvailableSlots] = useState<string[]>([])
+  const [selectedSlot, setSelectedSlot] = useState("")
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [availabilityData, setAvailabilityData] = useState<Availability[]>([])
+  const [bookedData, setBookedData] = useState<BookedSlot[]>([])
 
   const handleOpenForm = () => {
     setMessage(null)
@@ -42,7 +46,7 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!scheduledStart) {
+    if (!selectedSlot) {
       setError("Selecione uma data e horário.")
       return
     }
@@ -54,7 +58,7 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
     try {
       const lesson = await api.lessons.book({
         instructor_id: instructor.id,
-        scheduled_start: scheduledStart,
+        scheduled_start: selectedSlot,
         duration_hours: durationHours
       })
 
@@ -62,7 +66,7 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
         `Agendamento enviado! Aguarde a confirmação do instrutor. Total: R$ ${lesson.total_price.toFixed(2)}`
       )
       setShowForm(false)
-      setScheduledStart("")
+      setSelectedSlot("")
       setDurationHours(1)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao agendar a aula.")
@@ -70,6 +74,106 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
       setSubmitting(false)
     }
   }
+
+  const formatLocalDateTime = (date: Date) => {
+    const pad = (value: number) => String(value).padStart(2, "0")
+    const yyyy = date.getFullYear()
+    const mm = pad(date.getMonth() + 1)
+    const dd = pad(date.getDate())
+    const hh = pad(date.getHours())
+    const min = pad(date.getMinutes())
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`
+  }
+
+  const parseTime = (value: string) => {
+    const match = value.match(/^(\d{2}):(\d{2})/)
+    if (!match) return null
+    return [Number(match[1]), Number(match[2])]
+  }
+
+  const generateSlots = (
+    availability: Availability[],
+    booked: BookedSlot[],
+    duration: number
+  ) => {
+    const slots: string[] = []
+    const now = new Date()
+    const daysToShow = 14
+
+    for (let i = 0; i < daysToShow; i += 1) {
+      const date = new Date(now)
+      date.setDate(now.getDate() + i)
+      const weekday = date.getDay()
+      const daySlots = availability.filter((slot) => Number(slot.weekday) === weekday)
+
+      daySlots.forEach((slot) => {
+        const startParts = parseTime(slot.start_time)
+        const endParts = parseTime(slot.end_time)
+        if (!startParts || !endParts) {
+          return
+        }
+        const [startHour, startMinute] = startParts
+        const [endHour, endMinute] = endParts
+        const start = new Date(date)
+        start.setHours(startHour, startMinute, 0, 0)
+        const end = new Date(date)
+        end.setHours(endHour, endMinute, 0, 0)
+
+        let cursor = new Date(start)
+        while (cursor.getTime() + duration * 60 * 60 * 1000 <= end.getTime()) {
+          const candidateStart = new Date(cursor)
+          const candidateEnd = new Date(cursor.getTime() + duration * 60 * 60 * 1000)
+
+          const overlaps = booked.some((b) => {
+            const bStart = new Date(b.scheduled_start)
+            const bEnd = new Date(b.scheduled_end)
+            return candidateStart < bEnd && candidateEnd > bStart
+          })
+
+          if (!overlaps && candidateStart > now) {
+            slots.push(formatLocalDateTime(candidateStart))
+          }
+          cursor = new Date(cursor.getTime() + 60 * 60 * 1000)
+        }
+      })
+    }
+
+    return slots
+  }
+
+  const loadSlots = async () => {
+    setLoadingSlots(true)
+    try {
+      const [availability, booked] = await Promise.all([
+        api.instructors.getPublicAvailability(instructor.id),
+        api.lessons.getBookedForInstructor(instructor.id)
+      ])
+      const availabilityList = availability || []
+      const bookedList = booked || []
+      setAvailabilityData(availabilityList)
+      setBookedData(bookedList)
+      const slots = generateSlots(availabilityList, bookedList, durationHours)
+      setAvailableSlots(slots)
+      if (slots.length > 0) {
+        setSelectedSlot(slots[0])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao carregar horários.")
+    } finally {
+      setLoadingSlots(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!showForm) return
+    const slots = generateSlots(availabilityData, bookedData, durationHours)
+    setAvailableSlots(slots)
+    if (slots.length > 0) {
+      setSelectedSlot(slots[0])
+    } else {
+      setSelectedSlot("")
+    }
+  }, [durationHours, showForm, availabilityData, bookedData])
 
   const toggleReviews = async () => {
     if (showReviews) {
@@ -85,6 +189,22 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
       setError(err instanceof Error ? err.message : "Falha ao carregar avaliações.")
     } finally {
       setLoadingReviews(false)
+    }
+  }
+
+  const toggleForm = async () => {
+    if (!user) {
+      handleOpenForm()
+      return
+    }
+    if (user.role !== "student") {
+      handleOpenForm()
+      return
+    }
+    const nextShow = !showForm
+    setShowForm(nextShow)
+    if (nextShow) {
+      await loadSlots()
     }
   }
 
@@ -118,7 +238,7 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
           <span className="price-value">R$ {instructor.price_per_hour.toFixed(2)}</span>
         </div>
         <div className="card-actions">
-          <button className="book-btn" onClick={handleOpenForm}>
+          <button className="book-btn" onClick={toggleForm}>
             Agendar Aula
           </button>
           <button className="secondary-btn" onClick={toggleReviews} disabled={loadingReviews}>
@@ -134,13 +254,23 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
         <form className="booking-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor={`start-${instructor.id}`}>Data e horário</label>
-            <input
+            <select
               id={`start-${instructor.id}`}
-              type="datetime-local"
-              value={scheduledStart}
-              onChange={(e) => setScheduledStart(e.target.value)}
+              value={selectedSlot}
+              onChange={(e) => setSelectedSlot(e.target.value)}
               required
-            />
+              disabled={loadingSlots}
+            >
+              {availableSlots.length === 0 ? (
+                <option value="">Nenhum horário disponível</option>
+              ) : (
+                availableSlots.map((slot) => (
+                  <option key={slot} value={slot}>
+                    {new Date(slot).toLocaleString("pt-BR")}
+                  </option>
+                ))
+              )}
+            </select>
           </div>
           <div className="form-group">
             <label htmlFor={`duration-${instructor.id}`}>Duração (horas)</label>

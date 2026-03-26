@@ -119,6 +119,12 @@ export function Dashboard({ user }: DashboardProps) {
   const handleAddAvailability = async (event: React.FormEvent) => {
     event.preventDefault()
     setAvailabilityError(null)
+
+    if (availabilityForm.end_time <= availabilityForm.start_time) {
+      setAvailabilityError("Horário final deve ser maior que o horário inicial")
+      return
+    }
+
     try {
       const created = await api.instructors.createAvailability(availabilityForm)
       setAvailability((prev) => [...prev, created])

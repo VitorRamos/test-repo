@@ -71,3 +71,8 @@ export interface Availability {
   end_time: string
   created_at: string
 }
+
+export interface BookedSlot {
+  scheduled_start: string
+  scheduled_end: string
+}

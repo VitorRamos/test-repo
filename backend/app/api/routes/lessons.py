@@ -11,7 +11,7 @@ from backend.app.models.lesson import Lesson
 from backend.app.models.user import User
 from backend.app.models.review import Review
 from backend.app.models.availability import Availability
-from backend.app.schemas.lesson import LessonCreate, LessonRead, LessonConfirmCode
+from backend.app.schemas.lesson import LessonCreate, LessonRead, LessonConfirmCode, LessonBookedRead
 
 router = APIRouter()
 
@@ -67,7 +67,8 @@ def book_lesson(
         raise HTTPException(status_code=400, detail="O horário deve ser no futuro")
 
     # Availability check
-    weekday = data.scheduled_start.weekday()
+    # Align with frontend weekday (0=Sunday ... 6=Saturday)
+    weekday = (data.scheduled_start.weekday() + 1) % 7
     availability = db.query(Availability).filter(
         Availability.instructor_id == instructor.id,
         Availability.weekday == weekday
@@ -91,7 +92,7 @@ def book_lesson(
     scheduled_end = data.scheduled_start + timedelta(hours=data.duration_hours)
     conflicts = db.query(Lesson).filter(
         Lesson.instructor_id == instructor.id,
-        Lesson.status != "cancelled",
+        Lesson.status.in_(["confirmed", "completed", "pending_payment"]),
         Lesson.scheduled_start < scheduled_end,
         Lesson.scheduled_end > data.scheduled_start
     ).first()
@@ -144,6 +145,24 @@ def get_my_bookings(
     ]
 
 
+@router.get("/instructor/{instructor_id}/booked", response_model=list[LessonBookedRead])
+def get_instructor_booked(
+    instructor_id: str,
+    db: Session = Depends(get_db)
+):
+    lessons = db.query(Lesson).filter(
+        Lesson.instructor_id == instructor_id,
+        Lesson.status.in_(["confirmed", "completed", "pending_payment"])
+    ).all()
+    return [
+        LessonBookedRead(
+            scheduled_start=lesson.scheduled_start,
+            scheduled_end=lesson.scheduled_end
+        )
+        for lesson in lessons
+    ]
+
+
 @router.post("/{lesson_id}/confirm", response_model=LessonRead)
 def confirm_booking(
     lesson_id: str,
@@ -163,6 +182,27 @@ def confirm_booking(
 
     if lesson.status != "pending_instructor":
         raise HTTPException(status_code=400, detail="Aula não pode ser confirmada")
+
+    conflicts = db.query(Lesson).filter(
+        Lesson.instructor_id == instructor.id,
+        Lesson.id != lesson.id,
+        Lesson.status.in_(["confirmed", "completed", "pending_payment"]),
+        Lesson.scheduled_start < lesson.scheduled_end,
+        Lesson.scheduled_end > lesson.scheduled_start
+    ).first()
+    if conflicts:
+        raise HTTPException(status_code=400, detail="Horário já reservado com outro aluno")
+
+    pending_conflicts = db.query(Lesson).filter(
+        Lesson.instructor_id == instructor.id,
+        Lesson.id != lesson.id,
+        Lesson.status == "pending_instructor",
+        Lesson.scheduled_start < lesson.scheduled_end,
+        Lesson.scheduled_end > lesson.scheduled_start
+    ).all()
+    for pending_conflict in pending_conflicts:
+        pending_conflict.status = "cancelled"
+        db.add(pending_conflict)
 
     lesson.status = "confirmed"
     lesson.confirmation_code = generate_code()

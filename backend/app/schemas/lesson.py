@@ -33,5 +33,10 @@ class LessonRead(BaseModel):
     review_is_public: bool | None = None
     created_at: datetime
 
+
+class LessonBookedRead(BaseModel):
+    scheduled_start: datetime
+    scheduled_end: datetime
+
     class Config:
         from_attributes = True
