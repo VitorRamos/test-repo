@@ -27,3 +27,6 @@
 - Criar um calendario mostrando os dias que tenho aula (mesma coisa para o instrutor)
 - Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)
 - Esses cards de stats podem ir para o card Ganhos em instrutor e nomear esse card de outra coisa que melhor represente
+- Nao mostrar email do estudante para instrutor/publico
+- O booking ainda esta confuso a parte de apertar dois butoes algunmas pessoas acharam que so selecionar e o suficiente (tambem querem exlcuir faixas para ferias por exemplo)
+- O filtro pode ter autocompletar
