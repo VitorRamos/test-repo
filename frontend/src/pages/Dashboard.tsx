@@ -29,6 +29,474 @@ const hasSameTimeRange = (
       range.end_time === candidate.end_time
   )
 
+function StepBadge({ n, active, done }: { n: number; active: boolean; done: boolean }) {
+  return <span className={`availability-step-badge${active ? " active" : ""}${done ? " done" : ""}`}>{done ? "✓" : n}</span>
+}
+
+function AvailabilitySection() {
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [period, setPeriod] = useState({
+    start_date: formatDateInput(today),
+    end_date: formatDateInput(new Date(today.getTime() + 1000 * 60 * 60 * 24 * 30))
+  })
+  const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5])
+  const [timeRanges, setTimeRanges] = useState<Array<{ start_time: string; end_time: string }>>([])
+  const [draft, setDraft] = useState({ start_time: "08:00", end_time: "12:00" })
+  const [availability, setAvailability] = useState<Availability[]>([])
+  const [publishError, setPublishError] = useState<string | null>(null)
+  const [publishing, setPublishing] = useState(false)
+  const [showBlockModal, setShowBlockModal] = useState(false)
+  const [blockPeriod, setBlockPeriod] = useState({
+    start_date: formatDateInput(today),
+    end_date: formatDateInput(new Date(today.getTime() + 1000 * 60 * 60 * 24 * 7))
+  })
+  const [blockError, setBlockError] = useState<string | null>(null)
+  const [blocking, setBlocking] = useState(false)
+  const [blockedCount, setBlockedCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    void fetchAvailability()
+  }, [])
+
+  useEffect(() => {
+    if (blockedCount === null) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => setBlockedCount(null), 2500)
+    return () => window.clearTimeout(timeoutId)
+  }, [blockedCount])
+
+  const fetchAvailability = async () => {
+    try {
+      const data = await api.instructors.getAvailability()
+      setAvailability(data || [])
+    } catch (error) {
+      console.error("Erro ao carregar disponibilidades", error)
+    }
+  }
+
+  const canGoStep2 = period.end_date >= period.start_date && weekdays.length > 0
+  const canGoStep3 = timeRanges.length > 0
+
+  const goToStep = (target: 1 | 2 | 3) => {
+    setPublishError(null)
+
+    if (target === 2 && !canGoStep2) {
+      setPublishError("Selecione datas validas e pelo menos um dia da semana.")
+      return
+    }
+
+    if (target === 3 && (!canGoStep2 || !canGoStep3)) {
+      setPublishError("Adicione pelo menos uma faixa de horario.")
+      return
+    }
+
+    setStep(target)
+  }
+
+  const handleAddTimeRange = () => {
+    setPublishError(null)
+
+    if (!isValidTimeRange(draft)) {
+      setPublishError("O horario final deve ser maior que o inicial.")
+      return
+    }
+
+    if (hasSameTimeRange(timeRanges, draft)) {
+      setPublishError("Essa faixa ja foi adicionada.")
+      return
+    }
+
+    setTimeRanges((prev) => [...prev, draft])
+    setDraft({ start_time: "08:00", end_time: "12:00" })
+  }
+
+  const handleRemoveTimeRange = (rangeToRemove: { start_time: string; end_time: string }) => {
+    setTimeRanges((prev) =>
+      prev.filter(
+        (range) =>
+          !(
+            range.start_time === rangeToRemove.start_time &&
+            range.end_time === rangeToRemove.end_time
+          )
+      )
+    )
+  }
+
+  const toggleWeekday = (weekday: number) => {
+    setWeekdays((prev) =>
+      prev.includes(weekday)
+        ? prev.filter((day) => day !== weekday)
+        : [...prev, weekday].sort((a, b) => a - b)
+    )
+  }
+
+  const handlePublish = async () => {
+    setPublishError(null)
+    if (!canGoStep2 || !canGoStep3) {
+      return
+    }
+
+    setPublishing(true)
+    try {
+      const created = await api.instructors.createAvailability({
+        ...period,
+        weekdays,
+        time_ranges: timeRanges
+      })
+      setAvailability((prev) => [...prev, ...created])
+      setStep(1)
+      setTimeRanges([])
+      setDraft({ start_time: "08:00", end_time: "12:00" })
+    } catch (error) {
+      setPublishError(error instanceof Error ? error.message : "Falha ao publicar disponibilidade.")
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  const handleDeleteAvailability = async (id: string) => {
+    setPublishError(null)
+    try {
+      await api.instructors.deleteAvailability(id)
+      setAvailability((prev) => prev.filter((slot) => slot.id !== id))
+    } catch (error) {
+      setPublishError(error instanceof Error ? error.message : "Falha ao remover disponibilidade.")
+    }
+  }
+
+  const handleBlockPeriod = async () => {
+    setBlockError(null)
+
+    if (blockPeriod.end_date < blockPeriod.start_date) {
+      setBlockError("A data final deve ser maior ou igual a inicial.")
+      return
+    }
+
+    setBlocking(true)
+    try {
+      const overlapping = availability.filter(
+        (slot) => {
+          if (!slot.start_date || !slot.end_date) {
+            return false
+          }
+
+          return !(slot.end_date < blockPeriod.start_date || slot.start_date > blockPeriod.end_date)
+        }
+      )
+
+      await Promise.all(overlapping.map((slot) => api.instructors.deleteAvailability(slot.id)))
+
+      setAvailability((prev) =>
+        prev.filter(
+          (slot) => {
+            if (!slot.start_date || !slot.end_date) {
+              return true
+            }
+
+            return slot.end_date < blockPeriod.start_date || slot.start_date > blockPeriod.end_date
+          }
+        )
+      )
+      setBlockedCount(overlapping.length)
+      setShowBlockModal(false)
+      setBlockPeriod({
+        start_date: formatDateInput(today),
+        end_date: formatDateInput(new Date(today.getTime() + 1000 * 60 * 60 * 24 * 7))
+      })
+    } catch (error) {
+      setBlockError(error instanceof Error ? error.message : "Falha ao bloquear periodo.")
+    } finally {
+      setBlocking(false)
+    }
+  }
+
+  return (
+    <div className="availability-wizard">
+      <div className="availability-card">
+        <div className="availability-card-header">
+          <div>
+            <h3>🕒 Disponibilidade</h3>
+            <p>Publique horarios recorrentes e controle exatamente o que fica visivel para os alunos na busca e na reserva.</p>
+          </div>
+          <button
+            className="availability-block-trigger"
+            type="button"
+            onClick={() => {
+              setShowBlockModal(true)
+              setBlockError(null)
+              setBlockedCount(null)
+            }}
+          >
+            🚫 Bloquear periodo
+          </button>
+        </div>
+
+        <div className="availability-steps">
+          {[
+            { n: 1, label: "Periodo e dias" },
+            { n: 2, label: "Horarios" },
+            { n: 3, label: "Confirmacao" }
+          ].map(({ n, label }) => {
+            const isDone = step > n
+            const isActive = step === n
+
+            return (
+              <button
+                key={n}
+                type="button"
+                className={`availability-step${isDone ? " done" : ""}${isActive ? " active" : ""}`}
+                onClick={() => goToStep(n as 1 | 2 | 3)}
+              >
+                <StepBadge n={n} active={isActive} done={isDone} />
+                <span>{label}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {publishError && <p className="confirm-error">{publishError}</p>}
+
+        {step === 1 && (
+          <div className="availability-panel">
+            <div className="availability-field-grid">
+              <label className="availability-field">
+                <span>Inicio do periodo</span>
+                <input
+                  type="date"
+                  value={period.start_date}
+                  onChange={(event) =>
+                    setPeriod((prev) => ({ ...prev, start_date: event.target.value }))
+                  }
+                />
+              </label>
+              <label className="availability-field">
+                <span>Fim do periodo</span>
+                <input
+                  type="date"
+                  value={period.end_date}
+                  onChange={(event) =>
+                    setPeriod((prev) => ({ ...prev, end_date: event.target.value }))
+                  }
+                />
+              </label>
+            </div>
+
+            <div className="availability-weekday-section">
+              <span className="availability-label">Dias da semana</span>
+              <div className="weekday-picker">
+                {WEEKDAY_OPTIONS.map((weekday) => (
+                  <button
+                    key={weekday.value}
+                    type="button"
+                    className={weekdays.includes(weekday.value) ? "weekday-chip active" : "weekday-chip"}
+                    onClick={() => toggleWeekday(weekday.value)}
+                  >
+                    {weekday.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="availability-step-nav">
+              <span />
+              <button className="action-btn" type="button" onClick={() => goToStep(2)} disabled={!canGoStep2}>
+                Proximo
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="availability-panel">
+            <div className="availability-inline-header">
+              <span className="availability-label">Adicione as faixas de horario disponiveis</span>
+            </div>
+
+            <div className="availability-time-row">
+              <label className="availability-field">
+                <span>Inicio</span>
+                <input
+                  type="time"
+                  value={draft.start_time}
+                  onChange={(event) =>
+                    setDraft((prev) => ({ ...prev, start_time: event.target.value }))
+                  }
+                />
+              </label>
+              <label className="availability-field">
+                <span>Fim</span>
+                <input
+                  type="time"
+                  value={draft.end_time}
+                  onChange={(event) =>
+                    setDraft((prev) => ({ ...prev, end_time: event.target.value }))
+                  }
+                />
+              </label>
+              <button className="secondary-action-btn availability-add-btn" type="button" onClick={handleAddTimeRange}>
+                + Adicionar
+              </button>
+            </div>
+
+            <div className="availability-pill-list">
+              {timeRanges.length === 0 ? (
+                <span className="availability-helper-text">Nenhuma faixa adicionada ainda.</span>
+              ) : (
+                timeRanges.map((range) => (
+                  <span key={`${range.start_time}-${range.end_time}`} className="availability-pill">
+                    {range.start_time} - {range.end_time}
+                    <button type="button" onClick={() => handleRemoveTimeRange(range)} aria-label="Remover horario">
+                      ×
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+
+            <div className="availability-step-nav">
+              <button className="cancel-btn availability-nav-btn" type="button" onClick={() => goToStep(1)}>
+                Voltar
+              </button>
+              <button className="action-btn availability-nav-btn" type="button" onClick={() => goToStep(3)} disabled={!canGoStep3}>
+                Revisar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="availability-panel">
+            <span className="availability-label">Revise antes de publicar</span>
+            <div className="availability-summary-box">
+              <div>
+                <strong>Periodo:</strong> {period.start_date} ate {period.end_date}
+              </div>
+              <div>
+                <strong>Dias:</strong>{" "}
+                {weekdays
+                  .map((value) => WEEKDAY_OPTIONS.find((option) => option.value === value)?.label || "")
+                  .join(", ")}
+              </div>
+              <div>
+                <strong>Horarios:</strong> {timeRanges.map((range) => `${range.start_time}-${range.end_time}`).join(" • ")}
+              </div>
+            </div>
+
+            <div className="availability-step-nav">
+              <button className="cancel-btn availability-nav-btn" type="button" onClick={() => goToStep(2)}>
+                Voltar
+              </button>
+              <button className="action-btn availability-nav-btn" type="button" onClick={handlePublish} disabled={publishing}>
+                {publishing ? "Publicando..." : "Publicar disponibilidade"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="availability-published-list">
+          <div className="availability-published-header">
+            <div>
+              <span>Disponibilidades publicadas</span>
+              <p>Esses periodos aparecem como base para os horarios publicos exibidos aos alunos.</p>
+            </div>
+            <strong>{availability.length}</strong>
+          </div>
+
+          {availability.length === 0 ? (
+            <p className="availability-empty">Nenhuma disponibilidade cadastrada.</p>
+          ) : (
+            <div className="availability-list">
+              {availability.map((slot) => (
+                <div key={slot.id} className="availability-item">
+                  <div className="availability-summary-main">
+                    <div className="availability-summary">
+                      <strong>{slot.start_date} ate {slot.end_date}</strong>
+                      <span>Janela publica para reservas</span>
+                    </div>
+                    <div className="availability-detail-chips">
+                      <span className="availability-detail-chip">
+                        📅 {slot.weekdays
+                          .map((day) => WEEKDAY_OPTIONS.find((option) => option.value === day)?.label || "")
+                          .join(", ")}
+                      </span>
+                      <span className="availability-detail-chip">
+                        🕒 {slot.start_time} - {slot.end_time}
+                      </span>
+                    </div>
+                  </div>
+                  <button className="cancel-btn availability-remove-btn" type="button" onClick={() => handleDeleteAvailability(slot.id)}>
+                    Remover
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showBlockModal && (
+        <div
+          className="availability-modal-overlay"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowBlockModal(false)
+            }
+          }}
+        >
+          <div className="availability-modal">
+            <h4>🚫 Bloquear periodo</h4>
+            <p>
+              Todas as disponibilidades que se sobrepoem ao intervalo selecionado serao removidas. Nesse intervalo, os alunos deixam de ver esses horarios publicos e nao conseguem reservar novas aulas.
+            </p>
+
+            {blockError && <p className="confirm-error">{blockError}</p>}
+
+            <div className="availability-field-grid">
+              <label className="availability-field">
+                <span>Data inicial</span>
+                <input
+                  type="date"
+                  value={blockPeriod.start_date}
+                  onChange={(event) =>
+                    setBlockPeriod((prev) => ({ ...prev, start_date: event.target.value }))
+                  }
+                />
+              </label>
+              <label className="availability-field">
+                <span>Data final</span>
+                <input
+                  type="date"
+                  value={blockPeriod.end_date}
+                  onChange={(event) =>
+                    setBlockPeriod((prev) => ({ ...prev, end_date: event.target.value }))
+                  }
+                />
+              </label>
+            </div>
+
+            <div className="availability-modal-actions">
+              <button className="cancel-btn availability-nav-btn" type="button" onClick={() => setShowBlockModal(false)}>
+                Cancelar
+              </button>
+              <button className="action-btn availability-nav-btn danger" type="button" onClick={handleBlockPeriod} disabled={blocking}>
+                {blocking ? "Bloqueando..." : "Bloquear periodo"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {blockedCount !== null && (
+        <div className="availability-toast">
+          {blockedCount} disponibilidade(s) removida(s) para o periodo.
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface InstructorStats {
   instructor_id: string
   total_lessons: number
@@ -57,21 +525,6 @@ export function InstructorPortal({ user }: DashboardProps) {
   const [loading, setLoading] = useState(true)
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
-  const [availability, setAvailability] = useState<Availability[]>([])
-  const [availabilityForm, setAvailabilityForm] = useState({
-    start_date: formatDateInput(today),
-    end_date: formatDateInput(new Date(today.getTime() + 1000 * 60 * 60 * 24 * 30)),
-    weekdays: [1, 2, 3, 4, 5]
-  })
-  const [timeRangeDraft, setTimeRangeDraft] = useState({
-    start_time: "08:00",
-    end_time: "12:00"
-  })
-  const [timeRangeDraftDirty, setTimeRangeDraftDirty] = useState(false)
-  const [timeRanges, setTimeRanges] = useState<Array<{ start_time: string; end_time: string }>>([
-    { start_time: "08:00", end_time: "12:00" }
-  ])
-  const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [requestError, setRequestError] = useState<string | null>(null)
   const [confirmedError, setConfirmedError] = useState<string | null>(null)
@@ -87,16 +540,14 @@ export function InstructorPortal({ user }: DashboardProps) {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [statsData, earningsData, lessonsData, availabilityData] = await Promise.all([
+      const [statsData, earningsData, lessonsData] = await Promise.all([
         api.instructors.getStats(),
         api.instructors.getEarnings(),
-        api.instructors.getLessons(),
-        api.instructors.getAvailability()
+        api.instructors.getLessons()
       ])
       setStats(statsData)
       setEarnings(earningsData)
       setLessons(lessonsData || [])
-      setAvailability(availabilityData || [])
 
       if (statsData?.instructor_id) {
         const reviewsData = await api.reviews.getByInstructor(statsData.instructor_id)
@@ -168,107 +619,6 @@ export function InstructorPortal({ user }: DashboardProps) {
       }
     } finally {
       setCancelingId(null)
-    }
-  }
-
-  const handleAddAvailability = async (event: React.FormEvent) => {
-    event.preventDefault()
-    setAvailabilityError(null)
-
-    if (availabilityForm.end_date < availabilityForm.start_date) {
-      setAvailabilityError("A data final deve ser maior ou igual à inicial")
-      return
-    }
-
-    if (availabilityForm.weekdays.length === 0) {
-      setAvailabilityError("Selecione pelo menos um dia da semana")
-      return
-    }
-
-    const rangesToSave = [...timeRanges]
-    if (
-      timeRangeDraftDirty &&
-      isValidTimeRange(timeRangeDraft) &&
-      !hasSameTimeRange(rangesToSave, timeRangeDraft)
-    ) {
-      rangesToSave.push(timeRangeDraft)
-    }
-
-    if (!timeRangeDraftDirty && timeRanges.length === 0) {
-      setAvailabilityError("Adicione pelo menos uma faixa de horário")
-      return
-    }
-
-    if (timeRangeDraftDirty && !isValidTimeRange(timeRangeDraft) && timeRanges.length === 0) {
-      setAvailabilityError("Preencha uma faixa válida ou adicione pelo menos uma faixa de horário")
-      return
-    }
-
-    if (rangesToSave.length === 0) {
-      setAvailabilityError("Adicione pelo menos uma faixa de horário")
-      return
-    }
-
-    try {
-      const created = await api.instructors.createAvailability({
-        ...availabilityForm,
-        time_ranges: rangesToSave
-      })
-      setAvailability((prev) => [...prev, ...created])
-      setTimeRanges(rangesToSave)
-      setTimeRangeDraft({ start_time: "08:00", end_time: "12:00" })
-      setTimeRangeDraftDirty(false)
-    } catch (err) {
-      setAvailabilityError(err instanceof Error ? err.message : "Falha ao salvar disponibilidade")
-    }
-  }
-
-  const handleAddTimeRange = () => {
-    setAvailabilityError(null)
-    if (!isValidTimeRange(timeRangeDraft)) {
-      setAvailabilityError("Horário final deve ser maior que o horário inicial")
-      return
-    }
-
-    const exists = hasSameTimeRange(timeRanges, timeRangeDraft)
-    if (exists) {
-      setAvailabilityError("Essa faixa de horário já foi adicionada")
-      return
-    }
-
-    setTimeRanges((prev) => [...prev, timeRangeDraft])
-    setTimeRangeDraft({ start_time: "08:00", end_time: "12:00" })
-    setTimeRangeDraftDirty(false)
-  }
-
-  const handleRemoveTimeRange = (rangeToRemove: { start_time: string; end_time: string }) => {
-    setTimeRanges((prev) =>
-      prev.filter(
-        (range) =>
-          !(
-            range.start_time === rangeToRemove.start_time &&
-            range.end_time === rangeToRemove.end_time
-          )
-      )
-    )
-  }
-
-  const toggleWeekday = (weekday: number) => {
-    setAvailabilityForm((prev) => ({
-      ...prev,
-      weekdays: prev.weekdays.includes(weekday)
-        ? prev.weekdays.filter((day) => day !== weekday)
-        : [...prev.weekdays, weekday].sort((a, b) => a - b)
-    }))
-  }
-
-  const handleDeleteAvailability = async (id: string) => {
-    setAvailabilityError(null)
-    try {
-      await api.instructors.deleteAvailability(id)
-      setAvailability((prev) => prev.filter((slot) => slot.id !== id))
-    } catch (err) {
-      setAvailabilityError(err instanceof Error ? err.message : "Falha ao remover disponibilidade")
     }
   }
 
@@ -412,137 +762,7 @@ export function InstructorPortal({ user }: DashboardProps) {
 
         {/* Availability */}
         <div className="dashboard-card actions-card span-2" id="disponibilidade">
-          <h3>🕒 Disponibilidade</h3>
-          {availabilityError && <p className="confirm-error">{availabilityError}</p>}
-          <form className="availability-form" onSubmit={handleAddAvailability}>
-            <div className="availability-section">
-              <h4>Publicação</h4>
-              <div className="availability-row">
-                <label>
-                  Início do período
-                  <input
-                    type="date"
-                    value={availabilityForm.start_date}
-                    onChange={(e) =>
-                      setAvailabilityForm((prev) => ({
-                        ...prev,
-                        start_date: e.target.value
-                      }))
-                    }
-                  />
-                </label>
-                <label>
-                  Fim do período
-                  <input
-                    type="date"
-                    value={availabilityForm.end_date}
-                    onChange={(e) =>
-                      setAvailabilityForm((prev) => ({
-                        ...prev,
-                        end_date: e.target.value
-                      }))
-                    }
-                  />
-                </label>
-              </div>
-
-              <div className="availability-hours">
-                <span className="availability-label">Horarios</span>
-                <div className="availability-row">
-                  <label>
-                    Início da faixa
-                    <input
-                      type="time"
-                      value={timeRangeDraft.start_time}
-                      onChange={(e) => {
-                        setTimeRangeDraftDirty(true)
-                        setTimeRangeDraft((prev) => ({
-                          ...prev,
-                          start_time: e.target.value
-                        }))
-                      }}
-                    />
-                  </label>
-                  <label>
-                    Fim da faixa
-                    <input
-                      type="time"
-                      value={timeRangeDraft.end_time}
-                      onChange={(e) => {
-                        setTimeRangeDraftDirty(true)
-                        setTimeRangeDraft((prev) => ({
-                          ...prev,
-                          end_time: e.target.value
-                        }))
-                      }}
-                    />
-                  </label>
-                  <div className="availability-actions">
-                    <button className="secondary-action-btn" type="button" onClick={handleAddTimeRange}>
-                      Adicionar horario
-                    </button>
-                  </div>
-                </div>
-
-                <div className="time-range-list">
-                  <p className="availability-helper-text">
-                    Adicione varios horarios para publicar no mesmo período.
-                  </p>
-                  {timeRanges.map((range) => (
-                    <div key={`${range.start_time}-${range.end_time}`} className="time-range-item">
-                      <span>{range.start_time} - {range.end_time}</span>
-                      <button type="button" className="cancel-btn" onClick={() => handleRemoveTimeRange(range)}>
-                        Remover
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="availability-weekdays">
-                <span className="availability-label">Dias da semana</span>
-                <div className="availability-weekdays-row">
-                  <div className="weekday-picker">
-                    {WEEKDAY_OPTIONS.map((weekday) => (
-                      <button
-                        key={weekday.value}
-                        type="button"
-                        className={availabilityForm.weekdays.includes(weekday.value) ? "weekday-chip active" : "weekday-chip"}
-                        onClick={() => toggleWeekday(weekday.value)}
-                      >
-                        {weekday.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="availability-actions">
-                    <button className="action-btn availability-submit" type="submit">Publicar disponibilidade</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </form>
-
-          {availability.length === 0 ? (
-            <p>Nenhuma disponibilidade cadastrada.</p>
-          ) : (
-            <div className="availability-list">
-              {availability.map((slot) => (
-                <div key={slot.id} className="availability-item">
-                  <div className="availability-summary">
-                    <strong>{slot.start_date} ate {slot.end_date}</strong>
-                    <span>
-                      {slot.weekdays
-                        .map((day) => WEEKDAY_OPTIONS.find((option) => option.value === day)?.label || "")
-                        .join(", ")} • {slot.start_time} - {slot.end_time}
-                    </span>
-                  </div>
-                  <button className="cancel-btn" onClick={() => handleDeleteAvailability(slot.id)}>
-                    Remover
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <AvailabilitySection />
         </div>
 
         {/* Completed Lessons */}
