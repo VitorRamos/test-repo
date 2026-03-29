@@ -1,10 +1,20 @@
-# TUDO (Pendências e Melhorias)
+# TODO (Pendências e Melhorias)
 
 ## Concluído
 
 - Confirmar ao cancelar uma aula (instrutor).
-- Filtro padrão ativo em `My Bookings`.
+- Filtro padrão em `My Bookings` definido para `all`.
 - Validar CPF, email e licença DETRAN.
+- Unificar disponibilidade, solicitações e aulas confirmadas em um calendário interativo no dashboard do instrutor.
+- Reutilizar a visualização em calendário em `My Bookings`.
+- Permitir seleção múltipla e drag-select no calendário do instrutor.
+- Publicar disponibilidade direto pela agenda, sem formulário separado.
+- Agrupar disponibilidades selecionadas por faixa de horário e intervalos de datas para remoção.
+- Exibir erro inline ao validar código inválido na agenda do instrutor.
+- Compactar a agenda para mostrar calendário e painel lateral ao mesmo tempo.
+- Mover ações rápidas da agenda para o topo do painel lateral.
+- Adicionar filtro de seleção na agenda do instrutor (`Com eventos`, `Disponibilidades`, `Solicitações e aulas`).
+- Atualizar `tests/e2e.py` para o novo fluxo da agenda e melhorar reuso de contas.
 
 ## Pendente
 
@@ -15,18 +25,14 @@
 - Bloquear confirmação de código fora do horário da aula (regra de data/horário).
 - Permitir múltiplos horários no mesmo dia com edição inline.
 - Implementar notificações (email ou in-app) para confirmações/cancelamentos.
-- Adicionar testes E2E para disponibilidade inválida, conflitos na confirmação e horários indisponíveis.
-- Expandir E2E para booking múltiplo, filtros da central do instrutor e merge de disponibilidade.
+- Expandir E2E para drag-select no calendário, filtro de seleção da agenda e remoção agrupada de disponibilidades.
 - Revisar ordenação e UX das listas de aulas do instrutor (pendentes, confirmadas, concluídas).
 - Exibir disponibilidade pública do instrutor de forma segura e resumida, sem expor dados desnecessários.
-- Melhorar filtro do instrutores (mapa?)
-- Mesclar horarios que se sobrepoem instrutor
-- Horario solicitacao card booking
-- Mostrar instructores que solicitei no card da tela inicial
-- Nao mudar muito de tamanho ao selecionar varias datas card inicial
-- Criar um calendario mostrando os dias que tenho aula (mesma coisa para o instrutor)
+- Melhorar filtro dos instrutores (mapa? autocomplete?).
+- Mostrar instrutores que solicitei no card da tela inicial.
 - Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)
 - Esses cards de stats podem ir para o card Ganhos em instrutor e nomear esse card de outra coisa que melhor represente
 - Nao mostrar email do estudante para instrutor/publico
-- O booking ainda esta confuso a parte de apertar dois butoes algunmas pessoas acharam que so selecionar e o suficiente (tambem querem exlcuir faixas para ferias por exemplo)
-- O filtro pode ter autocompletar
+- O booking do aluno ainda pode ficar mais claro na seleção dos horários.
+- Permitir bloqueios/feriados de forma explícita na agenda, sem confundir com publicação de disponibilidade.
+- Foto instrutor
