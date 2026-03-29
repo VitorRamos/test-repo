@@ -32,7 +32,7 @@
 - Mostrar instrutores que solicitei no card da tela inicial.
 - Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)
 - Esses cards de stats podem ir para o card Ganhos em instrutor e nomear esse card de outra coisa que melhor represente
-- Nao mostrar email do estudante para instrutor/publico
+- Nao mostrar email do estudante para instrutor/publico (implementar nickname)
 - O booking do aluno ainda pode ficar mais claro na seleção dos horários.
 - Permitir bloqueios/feriados de forma explícita na agenda, sem confundir com publicação de disponibilidade.
 - Foto instrutor
