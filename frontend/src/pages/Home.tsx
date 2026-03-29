@@ -4,14 +4,20 @@ import { api } from "../services/api"
 import type { Instructor } from "../types"
 import "./Home.css"
 
+const today = new Date()
+const formatDateInput = (value: Date) => value.toISOString().split("T")[0]
+
 export function Home() {
   const [allInstructors, setAllInstructors] = useState<Instructor[]>([])
   const [loading, setLoading] = useState(true)
+  const [availabilityChecking, setAvailabilityChecking] = useState(false)
+  const [availableInstructorIds, setAvailableInstructorIds] = useState<string[] | null>(null)
   const [filters, setFilters] = useState({
     query: "",
     city: "",
     price_max: "",
-    rating_min: ""
+    rating_min: "",
+    availability_only: false
   })
 
   useEffect(() => {
@@ -39,7 +45,8 @@ export function Home() {
       query: "",
       city: "",
       price_max: "",
-      rating_min: ""
+      rating_min: "",
+      availability_only: false
     })
   }
 
@@ -72,7 +79,7 @@ export function Home() {
     [allInstructors]
   )
 
-  const instructors = useMemo(() => {
+  const baseFilteredInstructors = useMemo(() => {
     const normalizedQuery = filters.query.trim().toLocaleLowerCase("pt-BR")
     const normalizedCity = filters.city.trim().toLocaleLowerCase("pt-BR")
     const priceMax = filters.price_max ? Number(filters.price_max) : null
@@ -94,6 +101,57 @@ export function Home() {
       return matchesQuery && matchesCity && matchesPrice && matchesRating
     })
   }, [allInstructors, filters.city, filters.price_max, filters.query, filters.rating_min])
+
+  useEffect(() => {
+    if (!filters.availability_only) {
+      setAvailableInstructorIds(null)
+      setAvailabilityChecking(false)
+      return
+    }
+
+    let cancelled = false
+
+    const loadAvailability = async () => {
+      setAvailabilityChecking(true)
+      try {
+        const dateFrom = formatDateInput(today)
+        const dateTo = formatDateInput(new Date(today.getTime() + 1000 * 60 * 60 * 24 * 21))
+        const entries = await Promise.all(
+          baseFilteredInstructors.map(async (instructor) => {
+            const slots = await api.instructors.getAvailableSlots(instructor.id, {
+              duration_hours: 1,
+              date_from: dateFrom,
+              date_to: dateTo
+            })
+            return slots.length > 0 ? instructor.id : null
+          })
+        )
+
+        if (!cancelled) {
+          setAvailableInstructorIds(entries.filter((value): value is string => value !== null))
+        }
+      } finally {
+        if (!cancelled) {
+          setAvailabilityChecking(false)
+        }
+      }
+    }
+
+    void loadAvailability()
+
+    return () => {
+      cancelled = true
+    }
+  }, [baseFilteredInstructors, filters.availability_only])
+
+  const instructors = useMemo(() => {
+    if (!filters.availability_only || availableInstructorIds === null) {
+      return baseFilteredInstructors
+    }
+
+    const allowedIds = new Set(availableInstructorIds)
+    return baseFilteredInstructors.filter((instructor) => allowedIds.has(instructor.id))
+  }, [availableInstructorIds, baseFilteredInstructors, filters.availability_only])
 
   return (
     <div className="home-container">
@@ -168,6 +226,17 @@ export function Home() {
               </select>
             </div>
 
+            <label className="search-checkbox">
+              <input
+                type="checkbox"
+                checked={filters.availability_only}
+                onChange={(e) =>
+                  setFilters({ ...filters, availability_only: e.target.checked })
+                }
+              />
+              <span>Somente com disponibilidade</span>
+            </label>
+
             <div className="search-actions">
               <button type="submit" className="search-btn">
                 Aplicar filtros
@@ -180,7 +249,7 @@ export function Home() {
         </aside>
 
         <main className="home-main">
-          {loading ? (
+          {loading || availabilityChecking ? (
             <p className="loading">Carregando instrutores...</p>
           ) : instructors.length === 0 ? (
             <p className="no-results">Nenhum instrutor encontrado. Tente ajustar seus filtros.</p>

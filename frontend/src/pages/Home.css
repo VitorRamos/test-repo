@@ -98,6 +98,22 @@
   box-shadow: 0 0 0 3px rgba(170, 59, 255, 0.1);
 }
 
+.search-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0 0 1.25rem;
+  color: var(--text-h);
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+.search-checkbox input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+}
+
 .search-actions {
   display: grid;
   gap: 0.75rem;
