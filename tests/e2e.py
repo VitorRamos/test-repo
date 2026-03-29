@@ -22,6 +22,7 @@ KEEP_BROWSER_OPEN = os.getenv("KEEP_BROWSER_OPEN", "false").lower() == "true"
 DELAY_SHORT = 0.5
 DELAY_MEDIUM = 1.0
 DELAY_LONG = 2.0
+DEFAULT_PASSWORD = "123123123"
 PT_MONTHS = {
     "janeiro": 1,
     "fevereiro": 2,
@@ -36,6 +37,7 @@ PT_MONTHS = {
     "novembro": 11,
     "dezembro": 12,
 }
+ACCOUNT_CACHE = {}
 
 def close_driver(driver):
     if not KEEP_BROWSER_OPEN:
@@ -113,6 +115,38 @@ def login(driver, email, password):
 def register_and_login(driver, email, password):
     register(driver, email, password)
     login(driver, email, password)
+
+
+def ensure_student_account(driver, cache_key="student_basic"):
+    cached = ACCOUNT_CACHE.get(cache_key)
+    if cached:
+        return cached
+
+    email = generate_email()
+    register_and_login(driver, email, DEFAULT_PASSWORD)
+    account = {"email": email, "password": DEFAULT_PASSWORD}
+    ACCOUNT_CACHE[cache_key] = account
+    return account
+
+
+def ensure_instructor_account(driver, cache_key="instructor_basic"):
+    cached = ACCOUNT_CACHE.get(cache_key)
+    if cached:
+        return cached
+
+    email = generate_email()
+    register_and_login(driver, email, DEFAULT_PASSWORD)
+    go_to_become_instructor(driver)
+    instructor_name = f"Instrutor {email.split('@')[0]}"
+    fill_instructor_form(driver, instructor_name)
+    submit_form(driver)
+    account = {
+        "email": email,
+        "password": DEFAULT_PASSWORD,
+        "instructor_name": instructor_name
+    }
+    ACCOUNT_CACHE[cache_key] = account
+    return account
 
 
 def go_to_become_instructor(driver):
@@ -468,14 +502,11 @@ def test_register_user():
     driver = create_driver()
     driver.get(BASE_URL)
 
-    email = generate_email()
-    password = "123123123"
-
     try:
-        register_and_login(driver, email, password)
+        account = ensure_student_account(driver)
 
         body = get_body(driver)
-        assert email.split("@")[0] in body
+        assert account["email"].split("@")[0] in body
         print("✅ Login successful")
 
         body = get_body(driver)
@@ -491,19 +522,12 @@ def test_register_instructor():
     driver = create_driver()
     driver.get(BASE_URL)
 
-    email = generate_email()
-    password = "123123123"
-
     try:
-        register_and_login(driver, email, password)
+        account = ensure_instructor_account(driver)
 
         body = get_body(driver)
-        assert email.split("@")[0] in body
+        assert account["email"].split("@")[0] in body
         print("✅ Login successful")
-
-        go_to_become_instructor(driver)
-        fill_instructor_form(driver, email)
-        submit_form(driver)
 
         body = get_body(driver)
         assert "Central" in body
@@ -519,11 +543,12 @@ def test_missing_fields_instructor():
     driver = create_driver()
     driver.get(BASE_URL)
 
-    email = generate_email()
-    password = "123123123"
-
     try:
-        register_and_login(driver, email, password)
+        account = ACCOUNT_CACHE.get("student_basic")
+        if account:
+            login(driver, account["email"], account["password"])
+        else:
+            ensure_student_account(driver)
 
         go_to_become_instructor(driver)
 
@@ -543,15 +568,12 @@ def test_navbar_updates():
     driver = create_driver()
     driver.get(BASE_URL)
 
-    email = generate_email()
-    password = "123123123"
-
     try:
-        register_and_login(driver, email, password)
-
-        go_to_become_instructor(driver)
-        fill_instructor_form(driver, email)
-        submit_form(driver)
+        account = ACCOUNT_CACHE.get("instructor_basic")
+        if account:
+            login(driver, account["email"], account["password"])
+        else:
+            ensure_instructor_account(driver)
 
         body = get_body(driver)
 
