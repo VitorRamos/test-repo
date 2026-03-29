@@ -656,10 +656,44 @@ export function InstructorPortal({ user }: DashboardProps) {
 
       <div className="dashboard-grid">
         {/* Welcome Section */}
-        <div className="dashboard-card welcome-card span-2">
+        <div className="dashboard-card welcome-card">
           <h2>Bem-vindo, {stats?.name}!</h2>
           <p className="location">📍 {stats?.city}, {stats?.state}</p>
           <p className="price">R$ {stats?.price_per_hour.toFixed(2)}/hora</p>
+        </div>
+
+        {/* Earnings Section */}
+        <div className="dashboard-card earnings-card compact-summary-card" id="ganhos">
+          <div className="compact-summary-header">
+            <h3>💰 Ganhos e indicadores</h3>
+            <span className="compact-summary-badge">Resumo</span>
+          </div>
+          <div className="earnings-item">
+            <span>Ganhos completos</span>
+            <strong>R$ {earnings?.total_earnings.toFixed(2)}</strong>
+          </div>
+          <div className="earnings-item">
+            <span>Ganhos pendentes</span>
+            <strong>R$ {earnings?.pending_earnings.toFixed(2)}</strong>
+          </div>
+          <div className="compact-stat-grid">
+            <div className="compact-stat-item">
+              <span className="compact-stat-label">Aulas totais</span>
+              <strong>{stats?.total_lessons}</strong>
+            </div>
+            <div className="compact-stat-item">
+              <span className="compact-stat-label">Alunos ensinados</span>
+              <strong>{stats?.students_taught}</strong>
+            </div>
+            <div className="compact-stat-item">
+              <span className="compact-stat-label">Concluídas</span>
+              <strong>{earnings?.completed_lessons}</strong>
+            </div>
+            <div className="compact-stat-item">
+              <span className="compact-stat-label">Avaliação</span>
+              <strong>⭐ {stats?.rating.toFixed(1)}</strong>
+            </div>
+          </div>
         </div>
 
         {/* Booking Requests */}
@@ -823,48 +857,8 @@ export function InstructorPortal({ user }: DashboardProps) {
           )}
         </div>
 
-        {/* Earnings Section */}
-        <div className="dashboard-card earnings-card" id="ganhos">
-          <h3>💰 Ganhos</h3>
-          <div className="earnings-item">
-            <span>Ganhos Completos:</span>
-            <strong>R$ {earnings?.total_earnings.toFixed(2)}</strong>
-          </div>
-          <div className="earnings-item">
-            <span>Ganhos Pendentes:</span>
-            <strong>R$ {earnings?.pending_earnings.toFixed(2)}</strong>
-          </div>
-          <div className="earnings-item">
-            <span>Aulas Concluídas:</span>
-            <strong>{earnings?.completed_lessons}</strong>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="stats-grid span-2">
-          <div className="stat-card">
-            <div className="stat-number">{stats?.total_lessons}</div>
-            <div className="stat-label">Aulas Totais</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-number">{stats?.students_taught}</div>
-            <div className="stat-label">Alunos Ensinados</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-number">⭐ {stats?.rating.toFixed(1)}</div>
-            <div className="stat-label">Avaliação</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-number">R$ {earnings?.total_earnings.toFixed(2)}</div>
-            <div className="stat-label">Ganhos Totais</div>
-          </div>
-        </div>
-
         {/* Reviews */}
-        <div className="dashboard-card actions-card span-2" id="avaliacoes">
+        <div className="dashboard-card actions-card" id="avaliacoes">
           <h3>⭐ Avaliações Recentes</h3>
           {reviews.length === 0 ? (
             <p>Nenhuma avaliação ainda.</p>
