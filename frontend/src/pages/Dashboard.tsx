@@ -170,6 +170,7 @@ function InstructorScheduleBoard({
   validationErrors
 }: InstructorScheduleBoardProps) {
   const [selectionFilter, setSelectionFilter] = useState<"all" | "availability" | "lessons">("lessons")
+  const [hasInitializedSelection, setHasInitializedSelection] = useState(false)
   const [availability, setAvailability] = useState<Availability[]>([])
   const [displayMonth, setDisplayMonth] = useState(defaultMonth)
   const [selectedDates, setSelectedDates] = useState<string[]>([])
@@ -500,7 +501,7 @@ function InstructorScheduleBoard({
   }, [activeLessons, markersByDate])
 
   useEffect(() => {
-    if (selectedDates.length > 0) {
+    if (hasInitializedSelection) {
       return
     }
 
@@ -512,15 +513,17 @@ function InstructorScheduleBoard({
     const nextActiveDate = getPreferredActiveDate(nextSelection)
     setSelectedDates(nextSelection)
     setActiveDate(nextActiveDate)
+    setHasInitializedSelection(true)
 
     if (nextActiveDate) {
       const date = parseDateKey(nextActiveDate)
       setDisplayMonth(new Date(date.getFullYear(), date.getMonth(), 1))
     }
-  }, [selectableDaysByFilter, selectedDates.length, selectionFilter])
+  }, [hasInitializedSelection, selectableDaysByFilter, selectionFilter])
 
   const handleSelectionFilterChange = (value: "all" | "availability" | "lessons") => {
     setSelectionFilter(value)
+    setHasInitializedSelection(true)
     const nextSelection = selectableDaysByFilter[value]
     setSelectedDates(nextSelection)
     setActiveDate(getPreferredActiveDate(nextSelection))
@@ -633,7 +636,7 @@ function InstructorScheduleBoard({
                   )
                 }
               >
-                <option value="all">Com eventos</option>
+                <option value="all">Disponibilidades, solicitações e aulas</option>
                 <option value="availability">Disponibilidades</option>
                 <option value="lessons">Solicitações e aulas</option>
               </select>
@@ -693,7 +696,7 @@ function InstructorScheduleBoard({
                     )
                   }
                 >
-                  Remover todas
+                  Remover todas as disponibilidades
                 </button>
               )}
             </div>
@@ -717,9 +720,11 @@ function InstructorScheduleBoard({
                     <button
                       className="cancel-btn"
                       type="button"
+                      aria-label={`Remover disponibilidade de ${group.start_time} até ${group.end_time}`}
+                      title="Remover disponibilidade"
                       onClick={() => void handleDeleteAvailabilityGroup(group.slotIds)}
                     >
-                      Remover grupo
+                      remover
                     </button>
                   </div>
                 ))}
@@ -738,7 +743,7 @@ function InstructorScheduleBoard({
                     onClick={() => void onConfirmAll(pendingSelectedLessons.map((lesson) => lesson.id))}
                     disabled={confirmingAll || cancelingAll}
                   >
-                    {confirmingAll ? "Confirmando..." : `Confirmar todas (${pendingSelectedLessons.length})`}
+                    {confirmingAll ? "Confirmando..." : `Confirmar solicitações (${pendingSelectedLessons.length})`}
                   </button>
                 )}
                 {cancelableSelectedLessons.length > 1 && (
@@ -748,7 +753,7 @@ function InstructorScheduleBoard({
                     onClick={() => void onCancelAll(cancelableSelectedLessons.map((lesson) => lesson.id))}
                     disabled={cancelingAll || confirmingAll}
                   >
-                    {cancelingAll ? "Cancelando..." : `Cancelar todas (${cancelableSelectedLessons.length})`}
+                    {cancelingAll ? "Cancelando..." : `Cancelar solicitações/aulas (${cancelableSelectedLessons.length})`}
                   </button>
                 )}
               </div>
@@ -828,7 +833,7 @@ function InstructorScheduleBoard({
                                   }
                                   disabled={validatingId === lesson.id}
                                 >
-                                  {validatingId === lesson.id ? "Validando..." : "Validar código"}
+                                  {validatingId === lesson.id ? "Validando..." : "Validar"}
                                 </button>
                                 <button
                                   className="cancel-btn"
@@ -1138,7 +1143,7 @@ export function InstructorPortal({ user }: DashboardProps) {
                   setHistoryFilter(e.target.value as "all" | "completed" | "cancelled")
                 }
               >
-                <option value="all">Todas</option>
+                <option value="all">Concluídas e canceladas</option>
                 <option value="completed">Concluídas</option>
                 <option value="cancelled">Canceladas</option>
               </select>

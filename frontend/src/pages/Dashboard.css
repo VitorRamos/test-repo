@@ -966,11 +966,13 @@
 }
 
 .schedule-section-head {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
   gap: 0.75rem;
-  align-items: baseline;
-  flex-wrap: wrap;
+  justify-items: start;
+}
+
+.schedule-section-head > strong {
+  display: block;
 }
 
 .schedule-section-head .secondary-action-btn {
@@ -978,10 +980,28 @@
   align-self: auto;
 }
 
+.schedule-section-head > .action-btn,
+.schedule-section-head > .cancel-btn,
+.schedule-section-head > .secondary-action-btn {
+  justify-self: start;
+  width: min(220px, 100%);
+  min-height: 44px;
+  margin-top: 0;
+}
+
 .schedule-bulk-actions {
   display: flex;
   gap: 0.6rem;
   flex-wrap: wrap;
+  width: 100%;
+}
+
+.schedule-bulk-actions .action-btn,
+.schedule-bulk-actions .cancel-btn {
+  flex: 1 1 220px;
+  max-width: 220px;
+  min-height: 44px;
+  margin-top: 0;
 }
 
 .schedule-entry-list {
@@ -1013,8 +1033,15 @@
 }
 
 .schedule-entry.availability {
+  position: relative;
   border-color: #bbf7d0;
   background: #f0fdf4;
+  padding-right: 3.25rem;
+}
+
+.schedule-entry.availability > div {
+  display: grid;
+  gap: 0.25rem;
 }
 
 .schedule-entry.pending_instructor {
@@ -1042,6 +1069,18 @@
   padding: 0.6rem 0.8rem;
 }
 
+.schedule-entry.availability .cancel-btn {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  min-width: 2.25rem;
+  width: 4.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 999px;
+  line-height: 1;
+}
+
 .schedule-lesson-meta {
   display: grid;
   gap: 0.25rem;
@@ -1050,7 +1089,7 @@
 
 .schedule-confirm-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   align-items: center;
 }
@@ -1061,6 +1100,14 @@
   border-radius: 10px;
   border: 1px solid var(--border);
   font-family: var(--sans);
+}
+
+.schedule-confirm-row .action-btn,
+.schedule-confirm-row .cancel-btn {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 0;
+  padding: 0.6rem 0.8rem;
 }
 
 .schedule-errors {
@@ -1289,6 +1336,10 @@
   }
 
   .schedule-section-head .secondary-action-btn,
+  .schedule-section-head .action-btn,
+  .schedule-section-head .cancel-btn,
+  .schedule-bulk-actions .action-btn,
+  .schedule-bulk-actions .cancel-btn,
   .schedule-entry .cancel-btn,
   .schedule-selection-bar .secondary-action-btn,
   .schedule-inline-actions .action-btn,
