@@ -67,16 +67,7 @@ def create_driver():
 
 
 def generate_email():
-    return f"test{random.randint(1000,9999)}@mail.com"
-
-
-def send_date_keys(input_element, value):
-    if isinstance(value, datetime):
-        text = value.strftime("%m%d%Y")
-    else:
-        text = datetime.strptime(value, "%Y-%m-%d").strftime("%m%d%Y")
-    input_element.clear()
-    input_element.send_keys(text)
+    return f"test{int(time.time() * 1000)}{random.randint(1000,9999)}@mail.com"
 
 
 def send_time_keys(input_element, value):
@@ -120,6 +111,7 @@ def register_and_login(driver, email, password):
 def ensure_student_account(driver, cache_key="student_basic"):
     cached = ACCOUNT_CACHE.get(cache_key)
     if cached:
+        login(driver, cached["email"], cached["password"])
         return cached
 
     email = generate_email()
@@ -132,6 +124,7 @@ def ensure_student_account(driver, cache_key="student_basic"):
 def ensure_instructor_account(driver, cache_key="instructor_basic"):
     cached = ACCOUNT_CACHE.get(cache_key)
     if cached:
+        login(driver, cached["email"], cached["password"])
         return cached
 
     email = generate_email()
@@ -199,11 +192,6 @@ def logout(driver):
     if buttons:
         buttons[0].click()
         time.sleep(DELAY_SHORT)
-
-
-def get_future_datetime_local():
-    future_time = (datetime.now() + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
-    return future_time.strftime("%m%d00%Y%H%MP")
 
 
 def book_instructor_by_name(driver, instructor_name, start_override=None, duration_override=None):
@@ -274,9 +262,36 @@ def confirm_first_booking(driver):
 
     driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Selecionar com eventos')]").click()
     time.sleep(DELAY_SHORT)
-    confirm_button = driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Confirmar')]")
+    target = find_first_schedule_entry_with_action(driver, "Confirmar")
+    confirm_button = target.find_element(By.XPATH, ".//button[contains(., 'Confirmar')]")
     confirm_button.click()
     time.sleep(DELAY_SHORT)
+
+
+def find_first_schedule_entry_with_action(driver, action_text):
+    agenda = driver.find_element(By.ID, "agenda")
+
+    def search_visible_entries():
+        entries = agenda.find_elements(By.CSS_SELECTOR, ".schedule-entry")
+        for entry in entries:
+            buttons = entry.find_elements(By.TAG_NAME, "button")
+            if any(action_text in button.text for button in buttons):
+                return entry
+        return None
+
+    found = search_visible_entries()
+    if found is not None:
+        return found
+
+    chips = agenda.find_elements(By.CSS_SELECTOR, ".schedule-selection-chip")
+    for chip in chips:
+        chip.click()
+        time.sleep(DELAY_SHORT)
+        found = search_visible_entries()
+        if found is not None:
+            return found
+
+    raise AssertionError(f"Could not find schedule entry with action: {action_text}")
 
 
 def find_schedule_entry_in_agenda(driver, text):
@@ -319,6 +334,13 @@ def confirm_booking_for_student(driver, student_email):
 def go_to_my_bookings(driver):
     driver.find_element(By.LINK_TEXT, "Minhas Aulas").click()
     time.sleep(DELAY_SHORT)
+
+
+def set_booking_filter(driver, value):
+    filters = driver.find_elements(By.ID, "booking-filter")
+    if filters:
+        Select(filters[0]).select_by_value(value)
+        time.sleep(DELAY_SHORT)
 
 def select_calendar_date(driver, date_value):
     target = datetime.strptime(date_value, "%Y-%m-%d")
@@ -370,7 +392,7 @@ def set_calendar_time_range(driver, start_time, end_time):
     time.sleep(DELAY_SHORT)
 
 
-def add_availability(driver, weekday, start_time, end_time, start_date=None, end_date=None):
+def add_availability(driver, start_time, end_time, start_date=None, end_date=None):
     driver.find_element(By.LINK_TEXT, "Central").click()
     time.sleep(DELAY_SHORT)
 
@@ -381,31 +403,57 @@ def add_availability(driver, weekday, start_time, end_time, start_date=None, end
     driver.find_element(By.CSS_SELECTOR, ".schedule-calendar-context .action-btn").click()
     time.sleep(DELAY_SHORT)
 
-def get_confirmation_code_from_my_bookings(driver):
+
+def create_instructor_with_availability(driver, start_time, end_time, cache_key=None):
+    if cache_key:
+        account = ensure_instructor_account(driver, cache_key=cache_key)
+        instructor_name = account["instructor_name"]
+    else:
+        email = generate_email()
+        register_and_login(driver, email, DEFAULT_PASSWORD)
+        go_to_become_instructor(driver)
+        instructor_name = f"Instrutor {email.split('@')[0]}"
+        fill_instructor_form(driver, instructor_name)
+        submit_form(driver)
+        account = {
+            "email": email,
+            "password": DEFAULT_PASSWORD,
+            "instructor_name": instructor_name
+        }
+
+    add_availability(driver, start_time, end_time)
+    return account
+
+
+def find_booking_card_by_instructor(driver, instructor_name):
     cards = driver.find_elements(By.CLASS_NAME, "booking-card")
     assert len(cards) > 0
-    text = cards[0].text
+    for card in cards:
+        if instructor_name in card.text:
+            return card
+    raise AssertionError(f"Could not find booking card for instructor: {instructor_name}")
+
+def get_confirmation_code_from_my_bookings(driver, instructor_name=None):
+    cards = driver.find_elements(By.CLASS_NAME, "booking-card")
+    assert len(cards) > 0
+    target = find_booking_card_by_instructor(driver, instructor_name) if instructor_name else cards[0]
+
+    text = target.text
     for line in text.split("\n"):
         if "Código da aula:" in line:
             return line.split("Código da aula:")[-1].strip()
     return None
 
 
-def submit_review_for_first_completed(driver):
+def submit_review_for_first_completed(driver, instructor_name=None):
     go_to_my_bookings(driver)
-    filters = driver.find_elements(By.ID, "booking-filter")
-    if filters:
-        filters[0].send_keys("Concluídos")
-        time.sleep(DELAY_SHORT)
+    set_booking_filter(driver, "completed")
 
-    cards = driver.find_elements(By.CLASS_NAME, "booking-card")
-    assert len(cards) > 0
-    target = None
-    for card in cards:
-        if "Concluída" in card.text or "Aulas Concluídas" in card.text:
-            target = card
-            break
-    if target is None:
+    if instructor_name:
+        target = find_booking_card_by_instructor(driver, instructor_name)
+    else:
+        cards = driver.find_elements(By.CLASS_NAME, "booking-card")
+        assert len(cards) > 0
         target = cards[0]
 
     rating_inputs = target.find_elements(By.CSS_SELECTOR, "input[type='number']")
@@ -438,10 +486,7 @@ def submit_review_for_first_completed(driver):
 
 def show_cancelled_bookings(driver):
     go_to_my_bookings(driver)
-    filters = driver.find_elements(By.ID, "booking-filter")
-    if filters:
-        filters[0].send_keys("Cancelados")
-        time.sleep(DELAY_SHORT)
+    set_booking_filter(driver, "cancelled")
 
 
 def wait_until(condition, timeout=5, interval=0.2):
@@ -467,31 +512,14 @@ def validate_code_for_first_confirmed(driver, code):
     validate_button.click()
     time.sleep(DELAY_SHORT)
 
-def cancel_first_booking_as_student(driver):
+def cancel_first_booking_as_student(driver, instructor_name=None):
     go_to_my_bookings(driver)
     cards = driver.find_elements(By.CLASS_NAME, "booking-card")
     assert len(cards) > 0
-    card = cards[0]
+    card = find_booking_card_by_instructor(driver, instructor_name) if instructor_name else cards[0]
     cancel_buttons = card.find_elements(By.CLASS_NAME, "cancel-btn")
     assert len(cancel_buttons) > 0
     cancel_buttons[0].click()
-    time.sleep(DELAY_SHORT)
-
-def cancel_first_booking_as_instructor(driver):
-    driver.find_element(By.LINK_TEXT, "Central").click()
-    time.sleep(DELAY_SHORT)
-
-    driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Selecionar com eventos')]").click()
-    time.sleep(DELAY_SHORT)
-    section = driver.find_element(By.ID, "agenda")
-    cancel_buttons = section.find_elements(By.XPATH, ".//button[contains(@class, 'cancel-btn') and contains(., 'Cancelar')]")
-    assert len(cancel_buttons) > 0
-    cancel_buttons[0].click()
-    try:
-        alert = driver.switch_to.alert
-        alert.accept()
-    except Exception:
-        pass
     time.sleep(DELAY_SHORT)
 
 # =========================
@@ -605,23 +633,12 @@ def test_booking_flow():
     driver = create_driver()
     driver.get(BASE_URL)
 
-    instructor_email = generate_email()
-    student_email = generate_email()
-    password = "123123123"
-
     try:
-        # Create instructor
-        register_and_login(driver, instructor_email, password)
-        go_to_become_instructor(driver)
-        instructor_name = f"Instrutor {instructor_email.split('@')[0]}"
-        fill_instructor_form(driver, instructor_name)
-        submit_form(driver)
-        weekday = (datetime.now() + timedelta(days=1)).weekday()
-        add_availability(driver, weekday, "08:00", "12:00")
+        instructor = create_instructor_with_availability(driver, "08:00", "12:00")
+        instructor_name = instructor["instructor_name"]
         logout(driver)
 
-        # Create student and book lesson
-        register_and_login(driver, student_email, password)
+        student = ensure_student_account(driver, cache_key="student_booking_flow")
         booked = book_instructor_by_name(driver, instructor_name)
         assert booked
 
@@ -632,14 +649,14 @@ def test_booking_flow():
         logout(driver)
 
         # Instructor confirms booking
-        login(driver, instructor_email, password)
+        login(driver, instructor["email"], instructor["password"])
         confirm_first_booking(driver)
         logout(driver)
 
         # Student sees confirmation code
-        login(driver, student_email, password)
+        login(driver, student["email"], student["password"])
         go_to_my_bookings(driver)
-        code = get_confirmation_code_from_my_bookings(driver)
+        code = get_confirmation_code_from_my_bookings(driver, instructor_name)
         body = get_body(driver)
         assert "Código da aula" in body
         assert code is not None
@@ -648,7 +665,7 @@ def test_booking_flow():
         logout(driver)
 
         # Instructor validates code
-        login(driver, instructor_email, password)
+        login(driver, instructor["email"], instructor["password"])
         validate_code_for_first_confirmed(driver, code)
         body = get_body(driver)
         assert "Histórico" in body or "Concluída" in body
@@ -657,8 +674,8 @@ def test_booking_flow():
         logout(driver)
 
         # Student submits review
-        login(driver, student_email, password)
-        submit_review_for_first_completed(driver)
+        login(driver, student["email"], student["password"])
+        submit_review_for_first_completed(driver, instructor_name)
         body = get_body(driver)
         assert "Avaliação enviada" in body or "Avaliação enviada ✅" in body
         print("✅ Review submitted successfully")
@@ -671,23 +688,12 @@ def test_cancel_booking_flow():
     driver = create_driver()
     driver.get(BASE_URL)
 
-    instructor_email = generate_email()
-    student_email = generate_email()
-    password = "123123123"
-
     try:
-        # Create instructor
-        register_and_login(driver, instructor_email, password)
-        go_to_become_instructor(driver)
-        instructor_name = f"Instrutor {instructor_email.split('@')[0]}"
-        fill_instructor_form(driver, instructor_name)
-        submit_form(driver)
-        weekday = (datetime.now() + timedelta(days=1)).weekday()
-        add_availability(driver, weekday, "08:00", "12:00")
+        instructor = create_instructor_with_availability(driver, "08:00", "12:00")
+        instructor_name = instructor["instructor_name"]
         logout(driver)
 
-        # Create student and book lesson
-        register_and_login(driver, student_email, password)
+        student = ensure_student_account(driver, cache_key="student_cancel_flow")
         booked = book_instructor_by_name(driver, instructor_name)
         assert booked
 
@@ -696,7 +702,7 @@ def test_cancel_booking_flow():
         print("✅ Booking created for cancellation")
 
         # Student cancels
-        cancel_first_booking_as_student(driver)
+        cancel_first_booking_as_student(driver, instructor_name)
         show_cancelled_bookings(driver)
         body = get_body(driver)
         assert "Cancelada" in body
@@ -710,25 +716,13 @@ def test_instructor_availability_blocks_booking():
     driver = create_driver()
     driver.get(BASE_URL)
 
-    instructor_email = generate_email()
-    student_email = generate_email()
-    password = "123123123"
-
     try:
-        # Create instructor and set limited availability (tomorrow 08:00-09:00)
-        register_and_login(driver, instructor_email, password)
-        go_to_become_instructor(driver)
-        instructor_name = f"Instrutor {instructor_email.split('@')[0]}"
-        fill_instructor_form(driver, instructor_name)
-        submit_form(driver)
-
-        weekday = (datetime.now() + timedelta(days=1)).weekday()
-        add_availability(driver, weekday, "08:00", "09:00")
-
+        instructor = create_instructor_with_availability(driver, "08:00", "09:00")
+        instructor_name = instructor["instructor_name"]
         logout(driver)
 
         # Student requests a 2-hour lesson, but the instructor only has a 1-hour window.
-        register_and_login(driver, student_email, password)
+        ensure_student_account(driver, cache_key="student_availability_limit")
         target, duration_input = open_booking_form_by_name(driver, instructor_name)
         duration_input.clear()
         duration_input.send_keys("2")
@@ -769,26 +763,13 @@ def test_instructor_conflict_booking():
     driver = create_driver()
     driver.get(BASE_URL)
 
-    instructor_email = generate_email()
-    student1_email = generate_email()
-    student2_email = generate_email()
-    password = "123123123"
-
     try:
-        # Create instructor and set availability (tomorrow 08:00-12:00)
-        register_and_login(driver, instructor_email, password)
-        go_to_become_instructor(driver)
-        instructor_name = f"Instrutor {instructor_email.split('@')[0]}"
-        fill_instructor_form(driver, instructor_name)
-        submit_form(driver)
-
-        weekday = (datetime.now() + timedelta(days=1)).weekday()
-        add_availability(driver, weekday, "08:00", "12:00")
-
+        instructor = create_instructor_with_availability(driver, "08:00", "12:00")
+        instructor_name = instructor["instructor_name"]
         logout(driver)
 
         # Student 1 books at 10:00 for 2 hours
-        register_and_login(driver, student1_email, password)
+        student1 = ensure_student_account(driver, cache_key="student_conflict_one")
         booked = book_instructor_by_name(driver, instructor_name, "10:00", "2")
         assert booked
         body = get_body(driver)
@@ -796,7 +777,7 @@ def test_instructor_conflict_booking():
         logout(driver)
 
         # Student 2 can still create an overlapping pending request at 11:00 for 1 hour
-        register_and_login(driver, student2_email, password)
+        student2 = ensure_student_account(driver, cache_key="student_conflict_two")
         booked = book_instructor_by_name(driver, instructor_name, "11:00", "1")
         body = get_body(driver)
         assert booked
@@ -804,15 +785,15 @@ def test_instructor_conflict_booking():
         logout(driver)
 
         # Instructor confirms the first request
-        login(driver, instructor_email, password)
-        confirm_booking_for_student(driver, student1_email)
+        login(driver, instructor["email"], instructor["password"])
+        confirm_booking_for_student(driver, student1["email"])
         body = get_body(driver)
         assert "Confirmada" in body or "confirmar" in body.lower()
-        assert student2_email not in driver.find_element(By.ID, "agenda").text
+        assert student2["email"] not in driver.find_element(By.ID, "agenda").text
         logout(driver)
 
         # The overlapping pending request is automatically cancelled
-        login(driver, student2_email, password)
+        login(driver, student2["email"], student2["password"])
         show_cancelled_bookings(driver)
         body = get_body(driver)
         assert "Cancelada" in body
@@ -826,14 +807,8 @@ def test_instructor_invalid_availability_rejected():
     driver = create_driver()
     driver.get(BASE_URL)
 
-    email = generate_email()
-    password = "123123123"
-
     try:
-        register_and_login(driver, email, password)
-        go_to_become_instructor(driver)
-        fill_instructor_form(driver, email)
-        submit_form(driver)
+        ensure_instructor_account(driver, cache_key="instructor_invalid")
 
         driver.find_element(By.LINK_TEXT, "Central").click()
         time.sleep(DELAY_SHORT)
