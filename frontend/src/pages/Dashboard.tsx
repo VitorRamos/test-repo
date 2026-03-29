@@ -140,6 +140,7 @@ function InstructorScheduleBoard({
   requestError,
   validationErrors
 }: InstructorScheduleBoardProps) {
+  const [selectionFilter, setSelectionFilter] = useState<"" | "all" | "availability" | "lessons">("")
   const [availability, setAvailability] = useState<Availability[]>([])
   const [displayMonth, setDisplayMonth] = useState(defaultMonth)
   const [selectedDates, setSelectedDates] = useState<string[]>([])
@@ -405,18 +406,31 @@ function InstructorScheduleBoard({
   }, [selectedAvailability, selectedDates])
 
   const hasSelection = selectedDates.length > 0
-  const selectableDaysWithContent = useMemo(
-    () =>
-      Object.entries(markersByDate)
-        .filter(([, markers]) => markers.length > 0)
-        .map(([dateKey]) => dateKey)
-        .sort(),
-    [markersByDate]
-  )
+  const selectableDaysByFilter = useMemo(() => {
+    const availabilityDates = new Set<string>()
 
-  const handleSelectAllWithContent = () => {
-    setSelectedDates(selectableDaysWithContent)
-    setActiveDate(selectableDaysWithContent[0] || null)
+    Object.entries(markersByDate).forEach(([dateKey, markers]) => {
+      if (markers.some((marker) => marker.tone === "availability")) {
+        availabilityDates.add(dateKey)
+      }
+    })
+
+    const lessonDates = new Set(lessons.map((lesson) => getLessonDateKey(lesson)))
+
+    const allDates = Array.from(new Set([...availabilityDates, ...lessonDates])).sort()
+
+    return {
+      all: allDates,
+      availability: Array.from(availabilityDates).sort(),
+      lessons: Array.from(lessonDates).sort()
+    }
+  }, [lessons, markersByDate])
+
+  const handleSelectionFilterChange = (value: "all" | "availability" | "lessons") => {
+    setSelectionFilter(value)
+    const nextSelection = selectableDaysByFilter[value]
+    setSelectedDates(nextSelection)
+    setActiveDate(nextSelection[0] || null)
   }
 
   const handleClearSelection = () => {
@@ -509,14 +523,25 @@ function InstructorScheduleBoard({
             <button className="calendar-ghost-btn" type="button" onClick={resetSelectionToToday}>
               Hoje
             </button>
-            <button
-              className="calendar-ghost-btn"
-              type="button"
-              onClick={handleSelectAllWithContent}
-              disabled={selectableDaysWithContent.length === 0}
-            >
-              Selecionar com eventos
-            </button>
+            <div className="section-filter schedule-selection-filter">
+              <label htmlFor="agenda-selection-filter">Filtrar</label>
+              <select
+                id="agenda-selection-filter"
+                value={selectionFilter}
+                onChange={(event) =>
+                  handleSelectionFilterChange(
+                    event.target.value as "all" | "availability" | "lessons"
+                  )
+                }
+              >
+                <option value="" disabled>
+                  Selecionar por filtro
+                </option>
+                <option value="all">Com eventos</option>
+                <option value="availability">Disponibilidades</option>
+                <option value="lessons">Solicitações e aulas</option>
+              </select>
+            </div>
             <button
               className="calendar-ghost-btn danger"
               type="button"

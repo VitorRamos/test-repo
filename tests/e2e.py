@@ -260,7 +260,7 @@ def confirm_first_booking(driver):
     driver.find_element(By.LINK_TEXT, "Central").click()
     time.sleep(DELAY_SHORT)
 
-    driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Selecionar com eventos')]").click()
+    set_agenda_selection_filter(driver, "Com eventos")
     time.sleep(DELAY_SHORT)
     target = find_first_schedule_entry_with_action(driver, "Confirmar")
     confirm_button = target.find_element(By.XPATH, ".//button[contains(., 'Confirmar')]")
@@ -323,7 +323,7 @@ def confirm_booking_for_student(driver, student_email):
     driver.find_element(By.LINK_TEXT, "Central").click()
     time.sleep(DELAY_SHORT)
 
-    driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Selecionar com eventos')]").click()
+    set_agenda_selection_filter(driver, "Com eventos")
     time.sleep(DELAY_SHORT)
     target = find_schedule_entry_in_agenda(driver, student_email)
     confirm_button = target.find_element(By.XPATH, ".//button[contains(., 'Confirmar')]")
@@ -341,6 +341,13 @@ def set_booking_filter(driver, value):
     if filters:
         Select(filters[0]).select_by_value(value)
         time.sleep(DELAY_SHORT)
+
+
+def set_agenda_selection_filter(driver, visible_text):
+    filters = driver.find_elements(By.ID, "agenda-selection-filter")
+    assert filters, "Agenda selection filter not found"
+    Select(filters[0]).select_by_visible_text(visible_text)
+    time.sleep(DELAY_SHORT)
 
 def select_calendar_date(driver, date_value):
     target = datetime.strptime(date_value, "%Y-%m-%d")
@@ -502,7 +509,7 @@ def validate_code_for_first_confirmed(driver, code):
     driver.find_element(By.LINK_TEXT, "Central").click()
     time.sleep(DELAY_SHORT)
 
-    driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Selecionar com eventos')]").click()
+    set_agenda_selection_filter(driver, "Com eventos")
     time.sleep(DELAY_SHORT)
     validate_button = driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Validar código')]")
     row = validate_button.find_element(By.XPATH, "./ancestor::div[contains(@class, 'schedule-confirm-row')]")
