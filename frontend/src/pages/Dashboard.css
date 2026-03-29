@@ -903,6 +903,26 @@
   margin-top: 1rem;
 }
 
+.agenda-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.85fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.agenda-main {
+  min-width: 0;
+}
+
+.agenda-side {
+  margin-top: 0;
+  align-self: start;
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 8rem);
+  overflow: auto;
+}
+
 .schedule-detail-column {
   display: grid;
   gap: 1rem;
@@ -912,9 +932,9 @@
   border: 1px solid var(--border);
   border-radius: 16px;
   background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
-  padding: 1rem;
+  padding: 0.9rem;
   display: grid;
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 .schedule-detail-header {
@@ -937,12 +957,12 @@
 .schedule-helper {
   margin: 0;
   color: var(--text);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
 }
 
 .schedule-section {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.65rem;
 }
 
 .schedule-section-head {
@@ -960,13 +980,13 @@
 
 .schedule-entry-list {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.6rem;
 }
 
 .schedule-entry {
   display: grid;
-  gap: 0.75rem;
-  padding: 0.9rem;
+  gap: 0.55rem;
+  padding: 0.75rem;
   border-radius: 12px;
   border: 1px solid var(--border);
   background: #fff;
@@ -999,7 +1019,7 @@
 
 .schedule-entry .cancel-btn {
   width: auto;
-  padding: 0.7rem 0.9rem;
+  padding: 0.6rem 0.8rem;
 }
 
 .schedule-lesson-meta {
@@ -1017,7 +1037,7 @@
 
 .schedule-confirm-row input {
   min-width: 0;
-  padding: 0.75rem 0.85rem;
+  padding: 0.65rem 0.8rem;
   border-radius: 10px;
   border: 1px solid var(--border);
   font-family: var(--sans);
@@ -1030,7 +1050,7 @@
 }
 
 .schedule-editor-card {
-  margin-top: 1rem;
+  margin-top: 0;
 }
 
 .schedule-selection-bar {
@@ -1067,10 +1087,11 @@
   background: #f0f9ff;
   color: #0c4a6e;
   border-radius: 999px;
-  padding: 0.45rem 0.8rem;
+  padding: 0.35rem 0.7rem;
   cursor: pointer;
   font-weight: 700;
   font-family: var(--sans);
+  font-size: 0.82rem;
 }
 
 .schedule-selection-chip.active {
@@ -1087,16 +1108,16 @@
 
 .calendar-action-bar {
   display: grid;
-  gap: 0.9rem;
+  gap: 0.7rem;
 }
 
 .calendar-action-copy {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.6rem;
+  gap: 0.45rem;
   align-items: center;
   color: var(--text);
-  font-size: 0.92rem;
+  font-size: 0.86rem;
 }
 
 .calendar-action-copy strong {
@@ -1104,7 +1125,7 @@
 }
 
 .calendar-action-copy span {
-  padding: 0.2rem 0.55rem;
+  padding: 0.18rem 0.5rem;
   border-radius: 999px;
   background: #dff4ff;
   color: #0c4a6e;
@@ -1114,16 +1135,16 @@
 .calendar-action-controls {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
   flex-wrap: wrap;
 }
 
 .calendar-action-controls select,
 .calendar-custom-range input {
-  min-height: 42px;
+  min-height: 38px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 0.7rem 0.85rem;
+  padding: 0.55rem 0.75rem;
   background: white;
   font-family: var(--sans);
 }
@@ -1153,23 +1174,31 @@
 }
 
 .calendar-secondary-actions.below-calendar {
-  margin-top: 0.85rem;
-  padding-top: 0.85rem;
+  margin-top: 0.65rem;
+  padding-top: 0.7rem;
+}
+
+.calendar-secondary-actions.side-actions {
+  margin: -0.1rem 0 0.1rem;
+  padding-top: 0;
+  padding-bottom: 0.15rem;
+  border-top: none;
+  border-bottom: 1px solid rgba(14, 165, 233, 0.12);
 }
 
 .calendar-ghost-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  padding: 0.6rem 0.95rem;
+  min-height: 36px;
+  padding: 0.5rem 0.8rem;
   border-radius: 999px;
   border: 1px solid #cbd5e1;
   background: rgba(255, 255, 255, 0.9);
   color: #0f172a;
   cursor: pointer;
   font-family: var(--sans);
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 600;
   transition: all 0.18s ease;
 }
@@ -1199,8 +1228,15 @@
 }
 
 @media (max-width: 1100px) {
+  .agenda-workspace,
   .schedule-workspace {
     grid-template-columns: 1fr;
+  }
+
+  .agenda-side {
+    position: static;
+    max-height: none;
+    overflow: visible;
   }
 }
 

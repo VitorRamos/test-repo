@@ -422,243 +422,217 @@ function InstructorScheduleBoard({
 
   return (
     <div className="dashboard-card actions-card span-2" id="agenda">
-      <ScheduleCalendar
-        month={displayMonth}
-        selectedDates={selectedDates}
-        activeDate={activeDate ?? undefined}
-        markersByDate={markersByDate}
-        onMonthChange={setDisplayMonth}
-        onSelectDate={selectDate}
-        onRangeSelect={handleRangeSelect}
-        title="Agenda interativa"
-        subtitle="Selecione dias no calendário e publique horários em poucos cliques."
-        contextualPanel={
-          <div className="calendar-action-bar">
-            <div className="calendar-action-copy">
-              <strong>1. Selecione os dias</strong>
-              <span>2. Escolha um período</span>
-              <span>3. Publique</span>
-            </div>
-
-            <div className="calendar-action-controls">
-              <select
-                value={selectedPreset}
-                onChange={(event) =>
-                  handlePresetChange(
-                    event.target.value as (typeof TIME_RANGE_PRESETS)[number]["value"]
-                  )
-                }
-              >
-                {TIME_RANGE_PRESETS.map((preset) => (
-                  <option key={preset.value} value={preset.value}>
-                    {preset.label}
-                  </option>
-                ))}
-              </select>
-
-              {selectedPreset === "custom" && (
-                <div className="calendar-custom-range">
-                  <input
-                    type="time"
-                    value={draft.start_time}
-                    onChange={(event) =>
-                      setDraft((prev) => ({ ...prev, start_time: event.target.value }))
-                    }
-                  />
-                  <input
-                    type="time"
-                    value={draft.end_time}
-                    onChange={(event) =>
-                      setDraft((prev) => ({ ...prev, end_time: event.target.value }))
-                    }
-                  />
+      <div className="agenda-workspace">
+        <div className="agenda-main">
+          <ScheduleCalendar
+            month={displayMonth}
+            selectedDates={selectedDates}
+            activeDate={activeDate ?? undefined}
+            markersByDate={markersByDate}
+            onMonthChange={setDisplayMonth}
+            onSelectDate={selectDate}
+            onRangeSelect={handleRangeSelect}
+            title="📊 Central do Instrutor"
+            subtitle="Selecione dias no calendário e publique horários em poucos cliques."
+            contextualPanel={
+              <div className="calendar-action-bar">
+                <div className="calendar-action-copy">
+                  <strong>1. Selecione os dias</strong>
+                  <span>2. Escolha um período</span>
+                  <span>3. Publique</span>
                 </div>
-              )}
 
-            <div className="calendar-action-buttons">
-                <button
-                  className="action-btn"
-                  type="button"
-                  onClick={handlePublish}
-                  disabled={publishing || !hasSelection}
-                >
-                  {publishing ? "Publicando..." : `Publicar em ${selectedDates.length || 0} dia(s)`}
-                </button>
-              </div>
-            </div>
-          </div>
-        }
-      />
-
-      <div className="calendar-secondary-actions below-calendar">
-        <button className="calendar-ghost-btn" type="button" onClick={resetSelectionToToday}>
-          Hoje
-        </button>
-        <button
-          className="calendar-ghost-btn"
-          type="button"
-          onClick={handleSelectAllWithContent}
-          disabled={selectableDaysWithContent.length === 0}
-        >
-          Selecionar com eventos
-        </button>
-        <button
-          className="calendar-ghost-btn danger"
-          type="button"
-          onClick={handleClearSelection}
-          disabled={!hasSelection}
-        >
-          Limpar seleção
-        </button>
-      </div>
-
-      {(requestError || publishError) && (
-        <div className="schedule-errors">
-          {requestError && <p className="confirm-error">{requestError}</p>}
-          {publishError && <p className="confirm-error">{publishError}</p>}
-        </div>
-      )}
-
-      <div className="schedule-detail-card schedule-editor-card">
-        <div className="schedule-selection-bar">
-          <div>
-            <h4>{selectedDates.length} dia(s) selecionado(s)</h4>
-            <p>
-              {activeDate
-                ? `Dia ativo: ${formatLongDate(activeDate)}. A publicação abaixo vale para toda a seleção.`
-                : "Nenhum dia ativo. Selecione um ou mais dias para publicar horários."}
-            </p>
-          </div>
-        </div>
-
-        <div className="schedule-selection-chip-list">
-          {selectedDates.map((dateKey) => (
-            <button
-              key={dateKey}
-              type="button"
-              className={`schedule-selection-chip${dateKey === activeDate ? " active" : ""}`}
-              onClick={() => {
-                setActiveDate(dateKey)
-                const date = parseDateKey(dateKey)
-                setDisplayMonth(new Date(date.getFullYear(), date.getMonth(), 1))
-              }}
-            >
-              {parseDateKey(dateKey).toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "2-digit"
-              })}
-            </button>
-          ))}
-        </div>
-
-        <div className="schedule-section">
-          <div className="schedule-section-head">
-            <strong>Disponibilidades na seleção</strong>
-            {groupedSelectedAvailability.length > 0 && (
-              <button
-                className="cancel-btn"
-                type="button"
-                onClick={() =>
-                  void handleDeleteAvailabilityGroup(
-                    groupedSelectedAvailability.flatMap((group) => group.slotIds)
-                  )
-                }
-              >
-                Remover todas
-              </button>
-            )}
-          </div>
-
-          {!hasSelection ? (
-            <p className="schedule-helper">Selecione um ou mais dias para ver as disponibilidades publicadas.</p>
-          ) : groupedSelectedAvailability.length === 0 ? (
-            <p className="schedule-helper">Nenhuma disponibilidade publicada para os dias selecionados.</p>
-          ) : (
-            <div className="schedule-entry-list">
-              {groupedSelectedAvailability.map((group) => (
-                <div key={group.key} className="schedule-entry availability">
-                  <div>
-                    <strong>{group.start_time} - {group.end_time}</strong>
-                    <span>{formatDateRanges(group.dateKeys)}</span>
-                  </div>
-                  <button
-                    className="cancel-btn"
-                    type="button"
-                    onClick={() => void handleDeleteAvailabilityGroup(group.slotIds)}
+                <div className="calendar-action-controls">
+                  <select
+                    value={selectedPreset}
+                    onChange={(event) =>
+                      handlePresetChange(
+                        event.target.value as (typeof TIME_RANGE_PRESETS)[number]["value"]
+                      )
+                    }
                   >
-                    Remover grupo
-                  </button>
+                    {TIME_RANGE_PRESETS.map((preset) => (
+                      <option key={preset.value} value={preset.value}>
+                        {preset.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {selectedPreset === "custom" && (
+                    <div className="calendar-custom-range">
+                      <input
+                        type="time"
+                        value={draft.start_time}
+                        onChange={(event) =>
+                          setDraft((prev) => ({ ...prev, start_time: event.target.value }))
+                        }
+                      />
+                      <input
+                        type="time"
+                        value={draft.end_time}
+                        onChange={(event) =>
+                          setDraft((prev) => ({ ...prev, end_time: event.target.value }))
+                        }
+                      />
+                    </div>
+                  )}
+
+                  <div className="calendar-action-buttons">
+                    <button
+                      className="action-btn"
+                      type="button"
+                      onClick={handlePublish}
+                      disabled={publishing || !hasSelection}
+                    >
+                      {publishing ? "Publicando..." : `Publicar em ${selectedDates.length || 0} dia(s)`}
+                    </button>
+                  </div>
                 </div>
-              ))}
+              </div>
+            }
+          />
+
+          {(requestError || publishError) && (
+            <div className="schedule-errors">
+              {requestError && <p className="confirm-error">{requestError}</p>}
+              {publishError && <p className="confirm-error">{publishError}</p>}
             </div>
           )}
         </div>
 
-        <div className="schedule-section">
-          <strong>Solicitações e aulas do dia ativo</strong>
+        <div className="schedule-detail-card schedule-editor-card agenda-side">
+          <div className="calendar-secondary-actions side-actions">
+            <button className="calendar-ghost-btn" type="button" onClick={resetSelectionToToday}>
+              Hoje
+            </button>
+            <button
+              className="calendar-ghost-btn"
+              type="button"
+              onClick={handleSelectAllWithContent}
+              disabled={selectableDaysWithContent.length === 0}
+            >
+              Selecionar com eventos
+            </button>
+            <button
+              className="calendar-ghost-btn danger"
+              type="button"
+              onClick={handleClearSelection}
+              disabled={!hasSelection}
+            >
+              Limpar seleção
+            </button>
+          </div>
 
-          {activeDate === null ? (
-            <p className="schedule-helper">Selecione um dia para ver solicitações e aulas.</p>
-          ) : selectedLessons.length === 0 ? (
-            <p className="schedule-helper">Nenhuma aula agendada nesta data.</p>
-          ) : (
-            <div className="schedule-entry-list">
-              {selectedLessons.map((lesson) => (
-                <div key={lesson.id} className={`schedule-entry ${lesson.status}`}>
-                  <div className="schedule-lesson-meta">
-                    <strong>
-                      {new Date(lesson.scheduled_start).toLocaleTimeString("pt-BR", {
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      })}{" "}
-                      • {formatLessonDuration(lesson)}
-                    </strong>
-                    <span>{lessonStatusLabel[lesson.status] || lesson.status}</span>
-                    <span>Aluno: {lesson.student_email || "Não informado"}</span>
-                  </div>
+          <div className="schedule-selection-bar">
+            <div>
+              <h4>{selectedDates.length} dia(s) selecionado(s)</h4>
+              <p>
+                {activeDate
+                  ? `Dia ativo: ${formatLongDate(activeDate)}. A publicação abaixo vale para toda a seleção.`
+                  : "Nenhum dia ativo. Selecione um ou mais dias para publicar horários."}
+              </p>
+            </div>
+          </div>
 
-                  {lesson.status === "pending_instructor" && (
-                    <div className="booking-actions">
-                      <button
-                        className="action-btn"
-                        type="button"
-                        onClick={() => void onConfirm(lesson.id)}
-                        disabled={confirmingId === lesson.id}
-                      >
-                        {confirmingId === lesson.id ? "Confirmando..." : "Confirmar"}
-                      </button>
-                      <button
-                        className="cancel-btn"
-                        type="button"
-                        onClick={() => void onCancel(lesson.id)}
-                        disabled={cancelingId === lesson.id}
-                      >
-                        {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
-                      </button>
+          <div className="schedule-selection-chip-list">
+            {selectedDates.map((dateKey) => (
+              <button
+                key={dateKey}
+                type="button"
+                className={`schedule-selection-chip${dateKey === activeDate ? " active" : ""}`}
+                onClick={() => {
+                  setActiveDate(dateKey)
+                  const date = parseDateKey(dateKey)
+                  setDisplayMonth(new Date(date.getFullYear(), date.getMonth(), 1))
+                }}
+              >
+                {parseDateKey(dateKey).toLocaleDateString("pt-BR", {
+                  day: "2-digit",
+                  month: "2-digit"
+                })}
+              </button>
+            ))}
+          </div>
+
+          <div className="schedule-section">
+            <div className="schedule-section-head">
+              <strong>Disponibilidades na seleção</strong>
+              {groupedSelectedAvailability.length > 0 && (
+                <button
+                  className="cancel-btn"
+                  type="button"
+                  onClick={() =>
+                    void handleDeleteAvailabilityGroup(
+                      groupedSelectedAvailability.flatMap((group) => group.slotIds)
+                    )
+                  }
+                >
+                  Remover todas
+                </button>
+              )}
+            </div>
+
+            {!hasSelection ? (
+              <p className="schedule-helper">
+                Selecione um ou mais dias para ver as disponibilidades publicadas.
+              </p>
+            ) : groupedSelectedAvailability.length === 0 ? (
+              <p className="schedule-helper">
+                Nenhuma disponibilidade publicada para os dias selecionados.
+              </p>
+            ) : (
+              <div className="schedule-entry-list">
+                {groupedSelectedAvailability.map((group) => (
+                  <div key={group.key} className="schedule-entry availability">
+                    <div>
+                      <strong>{group.start_time} - {group.end_time}</strong>
+                      <span>{formatDateRanges(group.dateKeys)}</span>
                     </div>
-                  )}
+                    <button
+                      className="cancel-btn"
+                      type="button"
+                      onClick={() => void handleDeleteAvailabilityGroup(group.slotIds)}
+                    >
+                      Remover grupo
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-                  {lesson.status === "confirmed" && (
-                    <>
-                      <div className="schedule-confirm-row">
-                        <input
-                          type="text"
-                          placeholder="Código do aluno"
-                          value={codeInputs[lesson.id] || ""}
-                          onChange={(event) =>
-                            setCodeInputs((prev) => ({
-                              ...prev,
-                              [lesson.id]: event.target.value
-                            }))
-                          }
-                        />
+          <div className="schedule-section">
+            <strong>Solicitações e aulas do dia ativo</strong>
+
+            {activeDate === null ? (
+              <p className="schedule-helper">Selecione um dia para ver solicitações e aulas.</p>
+            ) : selectedLessons.length === 0 ? (
+              <p className="schedule-helper">Nenhuma aula agendada nesta data.</p>
+            ) : (
+              <div className="schedule-entry-list">
+                {selectedLessons.map((lesson) => (
+                  <div key={lesson.id} className={`schedule-entry ${lesson.status}`}>
+                    <div className="schedule-lesson-meta">
+                      <strong>
+                        {new Date(lesson.scheduled_start).toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}{" "}
+                        • {formatLessonDuration(lesson)}
+                      </strong>
+                      <span>{lessonStatusLabel[lesson.status] || lesson.status}</span>
+                      <span>Aluno: {lesson.student_email || "Não informado"}</span>
+                    </div>
+
+                    {lesson.status === "pending_instructor" && (
+                      <div className="booking-actions">
                         <button
                           className="action-btn"
                           type="button"
-                          onClick={() => void onValidateCode(lesson.id, codeInputs[lesson.id] || "")}
-                          disabled={validatingId === lesson.id}
+                          onClick={() => void onConfirm(lesson.id)}
+                          disabled={confirmingId === lesson.id}
                         >
-                          {validatingId === lesson.id ? "Validando..." : "Validar código"}
+                          {confirmingId === lesson.id ? "Confirmando..." : "Confirmar"}
                         </button>
                         <button
                           className="cancel-btn"
@@ -669,17 +643,52 @@ function InstructorScheduleBoard({
                           {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
                         </button>
                       </div>
-                      {validationErrors[lesson.id] && (
-                        <p className="confirm-error inline-error">{validationErrors[lesson.id]}</p>
-                      )}
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                    )}
 
+                    {lesson.status === "confirmed" && (
+                      <>
+                        <div className="schedule-confirm-row">
+                          <input
+                            type="text"
+                            placeholder="Código do aluno"
+                            value={codeInputs[lesson.id] || ""}
+                            onChange={(event) =>
+                              setCodeInputs((prev) => ({
+                                ...prev,
+                                [lesson.id]: event.target.value
+                              }))
+                            }
+                          />
+                          <button
+                            className="action-btn"
+                            type="button"
+                            onClick={() =>
+                              void onValidateCode(lesson.id, codeInputs[lesson.id] || "")
+                            }
+                            disabled={validatingId === lesson.id}
+                          >
+                            {validatingId === lesson.id ? "Validando..." : "Validar código"}
+                          </button>
+                          <button
+                            className="cancel-btn"
+                            type="button"
+                            onClick={() => void onCancel(lesson.id)}
+                            disabled={cancelingId === lesson.id}
+                          >
+                            {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
+                          </button>
+                        </div>
+                        {validationErrors[lesson.id] && (
+                          <p className="confirm-error inline-error">{validationErrors[lesson.id]}</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -811,9 +820,19 @@ export function InstructorPortal({ user }: DashboardProps) {
 
   return (
     <div className="dashboard-container">
-      <h1>📊 Central do Instrutor</h1>
-
       <div className="dashboard-grid">
+        <InstructorScheduleBoard
+          lessons={lessons}
+          onConfirm={handleConfirm}
+          onValidateCode={handleValidateCode}
+          onCancel={handleCancel}
+          confirmingId={confirmingId}
+          validatingId={validatingId}
+          cancelingId={cancelingId}
+          requestError={requestError}
+          validationErrors={validationErrors}
+        />
+
         <div className="dashboard-card welcome-card">
           <h2>Bem-vindo, {stats?.name}!</h2>
           <p className="location">📍 {stats?.city}, {stats?.state}</p>
@@ -852,18 +871,6 @@ export function InstructorPortal({ user }: DashboardProps) {
             </div>
           </div>
         </div>
-
-        <InstructorScheduleBoard
-          lessons={lessons}
-          onConfirm={handleConfirm}
-          onValidateCode={handleValidateCode}
-          onCancel={handleCancel}
-          confirmingId={confirmingId}
-          validatingId={validatingId}
-          cancelingId={cancelingId}
-          requestError={requestError}
-          validationErrors={validationErrors}
-        />
 
         <div className="dashboard-card actions-card" id="concluidas">
           <div className="section-header-with-filter">

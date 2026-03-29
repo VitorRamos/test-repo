@@ -215,8 +215,6 @@ export function MyBookings({ user }: MyBookingsProps) {
 
   return (
     <div className="bookings-container">
-      <h1>📅 Meus Agendamentos</h1>
-
       {loading ? (
         <p>Carregando agendamentos...</p>
       ) : (
@@ -251,7 +249,7 @@ export function MyBookings({ user }: MyBookingsProps) {
                   markersByDate={markersByDate}
                   onMonthChange={setDisplayMonth}
                   onSelectDate={handleSelectDate}
-                  title="Agenda do aluno"
+                  title="📅 Meus Agendamentos"
                   subtitle="Navegue pelos agendamentos e ações por data."
                 />
               </div>
