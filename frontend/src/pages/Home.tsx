@@ -1,26 +1,28 @@
-import { useState, useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { InstructorCard } from "../components/InstructorCard"
 import { api } from "../services/api"
 import type { Instructor } from "../types"
 import "./Home.css"
 
 export function Home() {
-  const [instructors, setInstructors] = useState<Instructor[]>([])
+  const [allInstructors, setAllInstructors] = useState<Instructor[]>([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({
+    query: "",
     city: "",
-    price_max: ""
+    price_max: "",
+    rating_min: ""
   })
 
   useEffect(() => {
-    loadInstructors()
+    void loadInstructors()
   }, [])
 
   const loadInstructors = async () => {
     setLoading(true)
     try {
-      const data = await api.instructors.search(filters)
-      setInstructors(data || [])
+      const data = await api.instructors.search()
+      setAllInstructors(data || [])
     } catch (err) {
       console.error("Failed to load instructors:", err)
     } finally {
@@ -30,8 +32,68 @@ export function Home() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    loadInstructors()
   }
+
+  const handleClearFilters = () => {
+    setFilters({
+      query: "",
+      city: "",
+      price_max: "",
+      rating_min: ""
+    })
+  }
+
+  const citySuggestions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          allInstructors
+            .map((instructor) => instructor.city.trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [allInstructors]
+  )
+
+  const querySuggestions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          allInstructors.flatMap((instructor) => [
+            instructor.name.trim(),
+            instructor.city.trim(),
+            instructor.state.trim()
+          ])
+        )
+      )
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, "pt-BR"))
+        .slice(0, 24),
+    [allInstructors]
+  )
+
+  const instructors = useMemo(() => {
+    const normalizedQuery = filters.query.trim().toLocaleLowerCase("pt-BR")
+    const normalizedCity = filters.city.trim().toLocaleLowerCase("pt-BR")
+    const priceMax = filters.price_max ? Number(filters.price_max) : null
+    const ratingMin = filters.rating_min ? Number(filters.rating_min) : null
+
+    return allInstructors.filter((instructor) => {
+      const matchesQuery =
+        normalizedQuery === "" ||
+        [instructor.name, instructor.city, instructor.state]
+          .some((value) => value.toLocaleLowerCase("pt-BR").includes(normalizedQuery))
+
+      const matchesCity =
+        normalizedCity === "" ||
+        instructor.city.toLocaleLowerCase("pt-BR").includes(normalizedCity)
+
+      const matchesPrice = priceMax === null || instructor.price_per_hour <= priceMax
+      const matchesRating = ratingMin === null || instructor.rating >= ratingMin
+
+      return matchesQuery && matchesCity && matchesPrice && matchesRating
+    })
+  }, [allInstructors, filters.city, filters.price_max, filters.query, filters.rating_min])
 
   return (
     <div className="home-container">
@@ -46,14 +108,37 @@ export function Home() {
             <h3>Filtros de Busca</h3>
 
             <div className="form-group">
+              <label htmlFor="query">Busca rápida</label>
+              <input
+                id="query"
+                type="text"
+                list="instructor-search-suggestions"
+                placeholder="Nome, cidade ou estado"
+                value={filters.query}
+                onChange={(e) => setFilters({ ...filters, query: e.target.value })}
+              />
+              <datalist id="instructor-search-suggestions">
+                {querySuggestions.map((suggestion) => (
+                  <option key={suggestion} value={suggestion} />
+                ))}
+              </datalist>
+            </div>
+
+            <div className="form-group">
               <label htmlFor="city">Cidade</label>
               <input
                 id="city"
                 type="text"
+                list="city-suggestions"
                 placeholder="Digite a cidade"
                 value={filters.city}
                 onChange={(e) => setFilters({ ...filters, city: e.target.value })}
               />
+              <datalist id="city-suggestions">
+                {citySuggestions.map((city) => (
+                  <option key={city} value={city} />
+                ))}
+              </datalist>
             </div>
 
             <div className="form-group">
@@ -69,9 +154,28 @@ export function Home() {
               />
             </div>
 
-            <button type="submit" className="search-btn">
-              Buscar
-            </button>
+            <div className="form-group">
+              <label htmlFor="rating-min">Avaliação mínima</label>
+              <select
+                id="rating-min"
+                value={filters.rating_min}
+                onChange={(e) => setFilters({ ...filters, rating_min: e.target.value })}
+              >
+                <option value="">Qualquer nota</option>
+                <option value="4.5">4.5 ou mais</option>
+                <option value="4">4.0 ou mais</option>
+                <option value="3.5">3.5 ou mais</option>
+              </select>
+            </div>
+
+            <div className="search-actions">
+              <button type="submit" className="search-btn">
+                Aplicar filtros
+              </button>
+              <button type="button" className="search-reset-btn" onClick={handleClearFilters}>
+                Limpar
+              </button>
+            </div>
           </form>
         </aside>
 
