@@ -1,500 +1,98 @@
 import { useEffect, useMemo, useState } from "react"
+import { ScheduleCalendar } from "../components/ScheduleCalendar"
 import { api } from "../services/api"
 import type { Availability, Lesson, Review, User } from "../types"
+import {
+  addDays,
+  endOfMonth,
+  endOfWeek,
+  formatDateKey,
+  formatLongDate,
+  parseDateKey,
+  startOfMonth,
+  startOfWeek,
+  type CalendarMarker
+} from "../utils/calendar"
 import "./Dashboard.css"
 
-const WEEKDAY_OPTIONS = [
-  { value: 0, label: "Dom" },
-  { value: 1, label: "Seg" },
-  { value: 2, label: "Ter" },
-  { value: 3, label: "Qua" },
-  { value: 4, label: "Qui" },
-  { value: 5, label: "Sex" },
-  { value: 6, label: "Sab" }
-]
-
 const today = new Date()
-const formatDateInput = (value: Date) => value.toISOString().split("T")[0]
+const todayKey = formatDateKey(today)
+const defaultMonth = new Date(today.getFullYear(), today.getMonth(), 1)
 
 const isValidTimeRange = (range: { start_time: string; end_time: string }) =>
   range.start_time !== "" && range.end_time !== "" && range.end_time > range.start_time
 
-const hasSameTimeRange = (
-  ranges: Array<{ start_time: string; end_time: string }>,
-  candidate: { start_time: string; end_time: string }
-) =>
-  ranges.some(
-    (range) =>
-      range.start_time === candidate.start_time &&
-      range.end_time === candidate.end_time
-  )
-
-function StepBadge({ n, active, done }: { n: number; active: boolean; done: boolean }) {
-  return <span className={`availability-step-badge${active ? " active" : ""}${done ? " done" : ""}`}>{done ? "✓" : n}</span>
+const lessonStatusLabel: Record<string, string> = {
+  pending_instructor: "Solicitação pendente",
+  confirmed: "Aula confirmada",
+  completed: "Concluída",
+  cancelled: "Cancelada",
+  pending_payment: "Pagamento pendente"
 }
 
-function AvailabilitySection() {
-  const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [period, setPeriod] = useState({
-    start_date: formatDateInput(today),
-    end_date: formatDateInput(new Date(today.getTime() + 1000 * 60 * 60 * 24 * 30))
-  })
-  const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5])
-  const [timeRanges, setTimeRanges] = useState<Array<{ start_time: string; end_time: string }>>([])
-  const [draft, setDraft] = useState({ start_time: "08:00", end_time: "12:00" })
-  const [availability, setAvailability] = useState<Availability[]>([])
-  const [publishError, setPublishError] = useState<string | null>(null)
-  const [publishing, setPublishing] = useState(false)
-  const [showBlockModal, setShowBlockModal] = useState(false)
-  const [blockPeriod, setBlockPeriod] = useState({
-    start_date: formatDateInput(today),
-    end_date: formatDateInput(new Date(today.getTime() + 1000 * 60 * 60 * 24 * 7))
-  })
-  const [blockError, setBlockError] = useState<string | null>(null)
-  const [blocking, setBlocking] = useState(false)
-  const [blockedCount, setBlockedCount] = useState<number | null>(null)
+const getLessonDateKey = (lesson: Lesson) => formatDateKey(new Date(lesson.scheduled_start))
 
-  useEffect(() => {
-    void fetchAvailability()
-  }, [])
+const TIME_RANGE_PRESETS = [
+  { value: "08:00-12:00", label: "Manhã · 08:00-12:00" },
+  { value: "13:00-18:00", label: "Tarde · 13:00-18:00" },
+  { value: "18:00-21:00", label: "Noite · 18:00-21:00" },
+  { value: "08:00-18:00", label: "Dia inteiro · 08:00-18:00" },
+  { value: "custom", label: "Personalizado" }
+] as const
 
-  useEffect(() => {
-    if (blockedCount === null) {
-      return
-    }
-
-    const timeoutId = window.setTimeout(() => setBlockedCount(null), 2500)
-    return () => window.clearTimeout(timeoutId)
-  }, [blockedCount])
-
-  const fetchAvailability = async () => {
-    try {
-      const data = await api.instructors.getAvailability()
-      setAvailability(data || [])
-    } catch (error) {
-      console.error("Erro ao carregar disponibilidades", error)
-    }
+const formatDateRanges = (dateKeys: string[]) => {
+  if (dateKeys.length === 0) {
+    return ""
   }
 
-  const canGoStep2 = period.end_date >= period.start_date && weekdays.length > 0
-  const canGoStep3 = timeRanges.length > 0
+  const sorted = [...dateKeys].sort()
+  const ranges: Array<{ start: string; end: string }> = []
+  let start = sorted[0]
+  let end = sorted[0]
 
-  const goToStep = (target: 1 | 2 | 3) => {
-    setPublishError(null)
+  for (let index = 1; index < sorted.length; index += 1) {
+    const current = sorted[index]
+    const expectedNext = formatDateKey(addDays(parseDateKey(end), 1))
 
-    if (target === 2 && !canGoStep2) {
-      setPublishError("Selecione datas validas e pelo menos um dia da semana.")
-      return
+    if (current === expectedNext) {
+      end = current
+      continue
     }
 
-    if (target === 3 && (!canGoStep2 || !canGoStep3)) {
-      setPublishError("Adicione pelo menos uma faixa de horario.")
-      return
-    }
-
-    setStep(target)
+    ranges.push({ start, end })
+    start = current
+    end = current
   }
 
-  const handleAddTimeRange = () => {
-    setPublishError(null)
+  ranges.push({ start, end })
 
-    if (!isValidTimeRange(draft)) {
-      setPublishError("O horario final deve ser maior que o inicial.")
-      return
-    }
+  return ranges
+    .map((range) => {
+      const startLabel = parseDateKey(range.start).toLocaleDateString("pt-BR")
+      const endLabel = parseDateKey(range.end).toLocaleDateString("pt-BR")
+      return range.start === range.end ? startLabel : `${startLabel} até ${endLabel}`
+    })
+    .join(" • ")
+}
 
-    if (hasSameTimeRange(timeRanges, draft)) {
-      setPublishError("Essa faixa ja foi adicionada.")
-      return
-    }
+const formatLessonDuration = (lesson: Lesson) => {
+  const hours =
+    (new Date(lesson.scheduled_end).getTime() - new Date(lesson.scheduled_start).getTime()) /
+    (1000 * 60 * 60)
 
-    setTimeRanges((prev) => [...prev, draft])
-    setDraft({ start_time: "08:00", end_time: "12:00" })
+  return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`
+}
+
+const availabilityMatchesDate = (slot: Availability, dateKey: string) => {
+  if (!slot.start_date || !slot.end_date) {
+    return false
   }
 
-  const handleRemoveTimeRange = (rangeToRemove: { start_time: string; end_time: string }) => {
-    setTimeRanges((prev) =>
-      prev.filter(
-        (range) =>
-          !(
-            range.start_time === rangeToRemove.start_time &&
-            range.end_time === rangeToRemove.end_time
-          )
-      )
-    )
+  if (dateKey < slot.start_date || dateKey > slot.end_date) {
+    return false
   }
 
-  const toggleWeekday = (weekday: number) => {
-    setWeekdays((prev) =>
-      prev.includes(weekday)
-        ? prev.filter((day) => day !== weekday)
-        : [...prev, weekday].sort((a, b) => a - b)
-    )
-  }
-
-  const handlePublish = async () => {
-    setPublishError(null)
-    if (!canGoStep2 || !canGoStep3) {
-      return
-    }
-
-    setPublishing(true)
-    try {
-      const created = await api.instructors.createAvailability({
-        ...period,
-        weekdays,
-        time_ranges: timeRanges
-      })
-      setAvailability((prev) => [...prev, ...created])
-      setStep(1)
-      setTimeRanges([])
-      setDraft({ start_time: "08:00", end_time: "12:00" })
-    } catch (error) {
-      setPublishError(error instanceof Error ? error.message : "Falha ao publicar disponibilidade.")
-    } finally {
-      setPublishing(false)
-    }
-  }
-
-  const handleDeleteAvailability = async (id: string) => {
-    setPublishError(null)
-    try {
-      await api.instructors.deleteAvailability(id)
-      setAvailability((prev) => prev.filter((slot) => slot.id !== id))
-    } catch (error) {
-      setPublishError(error instanceof Error ? error.message : "Falha ao remover disponibilidade.")
-    }
-  }
-
-  const handleBlockPeriod = async () => {
-    setBlockError(null)
-
-    if (blockPeriod.end_date < blockPeriod.start_date) {
-      setBlockError("A data final deve ser maior ou igual a inicial.")
-      return
-    }
-
-    setBlocking(true)
-    try {
-      const overlapping = availability.filter(
-        (slot) => {
-          if (!slot.start_date || !slot.end_date) {
-            return false
-          }
-
-          return !(slot.end_date < blockPeriod.start_date || slot.start_date > blockPeriod.end_date)
-        }
-      )
-
-      await Promise.all(overlapping.map((slot) => api.instructors.deleteAvailability(slot.id)))
-
-      setAvailability((prev) =>
-        prev.filter(
-          (slot) => {
-            if (!slot.start_date || !slot.end_date) {
-              return true
-            }
-
-            return slot.end_date < blockPeriod.start_date || slot.start_date > blockPeriod.end_date
-          }
-        )
-      )
-      setBlockedCount(overlapping.length)
-      setShowBlockModal(false)
-      setBlockPeriod({
-        start_date: formatDateInput(today),
-        end_date: formatDateInput(new Date(today.getTime() + 1000 * 60 * 60 * 24 * 7))
-      })
-    } catch (error) {
-      setBlockError(error instanceof Error ? error.message : "Falha ao bloquear periodo.")
-    } finally {
-      setBlocking(false)
-    }
-  }
-
-  return (
-    <div className="availability-wizard">
-      <div className="availability-card">
-        <div className="availability-card-header">
-          <div>
-            <h3>🕒 Disponibilidade</h3>
-            <p>Publique horarios recorrentes e controle exatamente o que fica visivel para os alunos na busca e na reserva.</p>
-          </div>
-          <button
-            className="availability-block-trigger"
-            type="button"
-            onClick={() => {
-              setShowBlockModal(true)
-              setBlockError(null)
-              setBlockedCount(null)
-            }}
-          >
-            🚫 Bloquear periodo
-          </button>
-        </div>
-
-        <div className="availability-steps">
-          {[
-            { n: 1, label: "Periodo e dias" },
-            { n: 2, label: "Horarios" },
-            { n: 3, label: "Confirmacao" }
-          ].map(({ n, label }) => {
-            const isDone = step > n
-            const isActive = step === n
-
-            return (
-              <button
-                key={n}
-                type="button"
-                className={`availability-step${isDone ? " done" : ""}${isActive ? " active" : ""}`}
-                onClick={() => goToStep(n as 1 | 2 | 3)}
-              >
-                <StepBadge n={n} active={isActive} done={isDone} />
-                <span>{label}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        {publishError && <p className="confirm-error">{publishError}</p>}
-
-        {step === 1 && (
-          <div className="availability-panel">
-            <div className="availability-field-grid">
-              <label className="availability-field">
-                <span>Inicio do periodo</span>
-                <input
-                  type="date"
-                  value={period.start_date}
-                  onChange={(event) =>
-                    setPeriod((prev) => ({ ...prev, start_date: event.target.value }))
-                  }
-                />
-              </label>
-              <label className="availability-field">
-                <span>Fim do periodo</span>
-                <input
-                  type="date"
-                  value={period.end_date}
-                  onChange={(event) =>
-                    setPeriod((prev) => ({ ...prev, end_date: event.target.value }))
-                  }
-                />
-              </label>
-            </div>
-
-            <div className="availability-weekday-section">
-              <span className="availability-label">Dias da semana</span>
-              <div className="weekday-picker">
-                {WEEKDAY_OPTIONS.map((weekday) => (
-                  <button
-                    key={weekday.value}
-                    type="button"
-                    className={weekdays.includes(weekday.value) ? "weekday-chip active" : "weekday-chip"}
-                    onClick={() => toggleWeekday(weekday.value)}
-                  >
-                    {weekday.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="availability-step-nav">
-              <span />
-              <button className="action-btn" type="button" onClick={() => goToStep(2)} disabled={!canGoStep2}>
-                Proximo
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="availability-panel">
-            <div className="availability-inline-header">
-              <span className="availability-label">Adicione as faixas de horario disponiveis</span>
-            </div>
-
-            <div className="availability-time-row">
-              <label className="availability-field">
-                <span>Inicio</span>
-                <input
-                  type="time"
-                  value={draft.start_time}
-                  onChange={(event) =>
-                    setDraft((prev) => ({ ...prev, start_time: event.target.value }))
-                  }
-                />
-              </label>
-              <label className="availability-field">
-                <span>Fim</span>
-                <input
-                  type="time"
-                  value={draft.end_time}
-                  onChange={(event) =>
-                    setDraft((prev) => ({ ...prev, end_time: event.target.value }))
-                  }
-                />
-              </label>
-              <button className="secondary-action-btn availability-add-btn" type="button" onClick={handleAddTimeRange}>
-                + Adicionar
-              </button>
-            </div>
-
-            <div className="availability-pill-list">
-              {timeRanges.length === 0 ? (
-                <span className="availability-helper-text">Nenhuma faixa adicionada ainda.</span>
-              ) : (
-                timeRanges.map((range) => (
-                  <span key={`${range.start_time}-${range.end_time}`} className="availability-pill">
-                    {range.start_time} - {range.end_time}
-                    <button type="button" onClick={() => handleRemoveTimeRange(range)} aria-label="Remover horario">
-                      ×
-                    </button>
-                  </span>
-                ))
-              )}
-            </div>
-
-            <div className="availability-step-nav">
-              <button className="cancel-btn availability-nav-btn" type="button" onClick={() => goToStep(1)}>
-                Voltar
-              </button>
-              <button className="action-btn availability-nav-btn" type="button" onClick={() => goToStep(3)} disabled={!canGoStep3}>
-                Revisar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="availability-panel">
-            <span className="availability-label">Revise antes de publicar</span>
-            <div className="availability-summary-box">
-              <div>
-                <strong>Periodo:</strong> {period.start_date} ate {period.end_date}
-              </div>
-              <div>
-                <strong>Dias:</strong>{" "}
-                {weekdays
-                  .map((value) => WEEKDAY_OPTIONS.find((option) => option.value === value)?.label || "")
-                  .join(", ")}
-              </div>
-              <div>
-                <strong>Horarios:</strong> {timeRanges.map((range) => `${range.start_time}-${range.end_time}`).join(" • ")}
-              </div>
-            </div>
-
-            <div className="availability-step-nav">
-              <button className="cancel-btn availability-nav-btn" type="button" onClick={() => goToStep(2)}>
-                Voltar
-              </button>
-              <button className="action-btn availability-nav-btn" type="button" onClick={handlePublish} disabled={publishing}>
-                {publishing ? "Publicando..." : "Publicar disponibilidade"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="availability-published-list">
-          <div className="availability-published-header">
-            <div>
-              <span>Disponibilidades publicadas</span>
-              <p>Esses periodos aparecem como base para os horarios publicos exibidos aos alunos.</p>
-            </div>
-            <strong>{availability.length}</strong>
-          </div>
-
-          {availability.length === 0 ? (
-            <p className="availability-empty">Nenhuma disponibilidade cadastrada.</p>
-          ) : (
-            <div className="availability-list">
-              {availability.map((slot) => (
-                <div key={slot.id} className="availability-item">
-                  <div className="availability-summary-main">
-                    <div className="availability-summary">
-                      <strong>{slot.start_date} ate {slot.end_date}</strong>
-                      <span>Janela publica para reservas</span>
-                    </div>
-                    <div className="availability-detail-chips">
-                      <span className="availability-detail-chip">
-                        📅 {slot.weekdays
-                          .map((day) => WEEKDAY_OPTIONS.find((option) => option.value === day)?.label || "")
-                          .join(", ")}
-                      </span>
-                      <span className="availability-detail-chip">
-                        🕒 {slot.start_time} - {slot.end_time}
-                      </span>
-                    </div>
-                  </div>
-                  <button className="cancel-btn availability-remove-btn" type="button" onClick={() => handleDeleteAvailability(slot.id)}>
-                    Remover
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {showBlockModal && (
-        <div
-          className="availability-modal-overlay"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setShowBlockModal(false)
-            }
-          }}
-        >
-          <div className="availability-modal">
-            <h4>🚫 Bloquear periodo</h4>
-            <p>
-              Todas as disponibilidades que se sobrepoem ao intervalo selecionado serao removidas. Nesse intervalo, os alunos deixam de ver esses horarios publicos e nao conseguem reservar novas aulas.
-            </p>
-
-            {blockError && <p className="confirm-error">{blockError}</p>}
-
-            <div className="availability-field-grid">
-              <label className="availability-field">
-                <span>Data inicial</span>
-                <input
-                  type="date"
-                  value={blockPeriod.start_date}
-                  onChange={(event) =>
-                    setBlockPeriod((prev) => ({ ...prev, start_date: event.target.value }))
-                  }
-                />
-              </label>
-              <label className="availability-field">
-                <span>Data final</span>
-                <input
-                  type="date"
-                  value={blockPeriod.end_date}
-                  onChange={(event) =>
-                    setBlockPeriod((prev) => ({ ...prev, end_date: event.target.value }))
-                  }
-                />
-              </label>
-            </div>
-
-            <div className="availability-modal-actions">
-              <button className="cancel-btn availability-nav-btn" type="button" onClick={() => setShowBlockModal(false)}>
-                Cancelar
-              </button>
-              <button className="action-btn availability-nav-btn danger" type="button" onClick={handleBlockPeriod} disabled={blocking}>
-                {blocking ? "Bloqueando..." : "Bloquear periodo"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {blockedCount !== null && (
-        <div className="availability-toast">
-          {blockedCount} disponibilidade(s) removida(s) para o periodo.
-        </div>
-      )}
-    </div>
-  )
+  return slot.weekdays.includes(parseDateKey(dateKey).getDay())
 }
 
 interface InstructorStats {
@@ -519,6 +117,574 @@ interface DashboardProps {
   user: User | null
 }
 
+interface InstructorScheduleBoardProps {
+  lessons: Lesson[]
+  onConfirm: (lessonId: string) => Promise<void>
+  onValidateCode: (lessonId: string, code: string) => Promise<void>
+  onCancel: (lessonId: string) => Promise<void>
+  confirmingId: string | null
+  validatingId: string | null
+  cancelingId: string | null
+  requestError: string | null
+  validationErrors: Record<string, string | null>
+}
+
+function InstructorScheduleBoard({
+  lessons,
+  onConfirm,
+  onValidateCode,
+  onCancel,
+  confirmingId,
+  validatingId,
+  cancelingId,
+  requestError,
+  validationErrors
+}: InstructorScheduleBoardProps) {
+  const [availability, setAvailability] = useState<Availability[]>([])
+  const [displayMonth, setDisplayMonth] = useState(defaultMonth)
+  const [selectedDates, setSelectedDates] = useState<string[]>([])
+  const [activeDate, setActiveDate] = useState<string | null>(null)
+  const [selectedPreset, setSelectedPreset] = useState<(typeof TIME_RANGE_PRESETS)[number]["value"]>("08:00-12:00")
+  const [draft, setDraft] = useState({ start_time: "08:00", end_time: "12:00" })
+  const [publishError, setPublishError] = useState<string | null>(null)
+  const [publishing, setPublishing] = useState(false)
+  const [codeInputs, setCodeInputs] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    void fetchAvailability()
+  }, [])
+
+  const fetchAvailability = async () => {
+    try {
+      const data = await api.instructors.getAvailability()
+      setAvailability(data || [])
+    } catch (error) {
+      console.error("Erro ao carregar disponibilidades", error)
+    }
+  }
+
+  const selectDate = (dateKey: string) => {
+    const nextSelection = selectedDates.includes(dateKey)
+      ? selectedDates.filter((item) => item !== dateKey)
+      : [...selectedDates, dateKey].sort()
+
+    setSelectedDates(nextSelection)
+    setActiveDate(nextSelection.length === 0 ? null : nextSelection.includes(dateKey) ? dateKey : nextSelection[nextSelection.length - 1])
+    const date = parseDateKey(dateKey)
+    setDisplayMonth(new Date(date.getFullYear(), date.getMonth(), 1))
+    setPublishError(null)
+  }
+
+  const handleRangeSelect = (startDate: string, endDate: string, mode: "add" | "remove") => {
+    const start = parseDateKey(startDate)
+    const end = parseDateKey(endDate)
+    const ordered = start.getTime() <= end.getTime() ? [startDate, endDate] : [endDate, startDate]
+    const rangeStart = parseDateKey(ordered[0])
+    const rangeEnd = parseDateKey(ordered[1])
+
+    const rangeDates: string[] = []
+    for (
+      let cursor = rangeStart;
+      cursor.getTime() <= rangeEnd.getTime();
+      cursor = addDays(cursor, 1)
+    ) {
+      rangeDates.push(formatDateKey(cursor))
+    }
+
+    setSelectedDates((prev) => {
+      let nextSelection: string[]
+      if (mode === "add") {
+        nextSelection = Array.from(new Set([...prev, ...rangeDates])).sort()
+      } else {
+        nextSelection = prev.filter((dateKey) => !rangeDates.includes(dateKey))
+      }
+
+      setActiveDate(nextSelection.length === 0 ? null : nextSelection.includes(endDate) ? endDate : nextSelection[nextSelection.length - 1])
+      return nextSelection
+    })
+    setPublishError(null)
+  }
+
+  const resetSelectionToToday = () => {
+    setSelectedDates([todayKey])
+    setActiveDate(todayKey)
+    setDisplayMonth(new Date(today.getFullYear(), today.getMonth(), 1))
+  }
+
+  const handlePresetChange = (value: (typeof TIME_RANGE_PRESETS)[number]["value"]) => {
+    setSelectedPreset(value)
+    if (value === "custom") {
+      return
+    }
+
+    const [start_time, end_time] = value.split("-")
+    setDraft({ start_time, end_time })
+  }
+
+  const handlePublish = async () => {
+    setPublishError(null)
+
+    if (selectedDates.length === 0) {
+      setPublishError("Selecione pelo menos um dia no calendário.")
+      return
+    }
+
+    if (!isValidTimeRange(draft)) {
+      setPublishError("O horário final deve ser maior que o inicial.")
+      return
+    }
+
+    setPublishing(true)
+    try {
+      const createdGroups = await Promise.all(
+        selectedDates.map((dateKey) =>
+          api.instructors.createAvailability({
+            start_date: dateKey,
+            end_date: dateKey,
+            weekdays: [parseDateKey(dateKey).getDay()],
+            time_ranges: [draft]
+          })
+        )
+      )
+      setAvailability((prev) => [...prev, ...createdGroups.flat()])
+      setPublishError(null)
+      setDraft({ start_time: "08:00", end_time: "12:00" })
+      setSelectedPreset("08:00-12:00")
+      setSelectedDates([])
+      setActiveDate(null)
+    } catch (error) {
+      setPublishError(error instanceof Error ? error.message : "Falha ao publicar disponibilidade.")
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  const handleDeleteAvailabilityGroup = async (ids: string[]) => {
+    setPublishError(null)
+    try {
+      await Promise.all(ids.map((id) => api.instructors.deleteAvailability(id)))
+      const idSet = new Set(ids)
+      setAvailability((prev) => prev.filter((slot) => !idSet.has(slot.id)))
+    } catch (error) {
+      setPublishError(error instanceof Error ? error.message : "Falha ao remover disponibilidades.")
+    }
+  }
+
+  const visibleRange = useMemo(() => {
+    const start = startOfWeek(startOfMonth(displayMonth))
+    const end = endOfWeek(endOfMonth(displayMonth))
+    return { start, end }
+  }, [displayMonth])
+
+  const markersByDate = useMemo<Record<string, CalendarMarker[]>>(() => {
+    const markerMap: Record<string, CalendarMarker[]> = {}
+
+    const upsertMarker = (dateKey: string, marker: CalendarMarker) => {
+      const current = markerMap[dateKey] || []
+      const existing = current.find((item) => item.tone === marker.tone && item.label === marker.label)
+      if (existing) {
+        existing.count = (existing.count || 0) + (marker.count || 1)
+      } else {
+        current.push({ ...marker, count: marker.count || 1 })
+      }
+      markerMap[dateKey] = current
+    }
+
+    for (let cursor = new Date(visibleRange.start); cursor <= visibleRange.end; cursor = addDays(cursor, 1)) {
+      const dateKey = formatDateKey(cursor)
+      const availabilityCount = availability.filter((slot) => availabilityMatchesDate(slot, dateKey)).length
+
+      if (availabilityCount > 0) {
+        upsertMarker(dateKey, { tone: "availability", label: "Disponível", count: availabilityCount })
+      }
+    }
+
+    lessons.forEach((lesson) => {
+      const dateKey = getLessonDateKey(lesson)
+      const tone =
+        lesson.status === "pending_instructor"
+          ? "pending"
+          : lesson.status === "confirmed"
+            ? "confirmed"
+            : lesson.status === "cancelled"
+              ? "cancelled"
+              : "completed"
+
+      const label =
+        lesson.status === "pending_instructor"
+          ? "Solicitação"
+          : lesson.status === "confirmed"
+            ? "Confirmada"
+            : lesson.status === "cancelled"
+              ? "Cancelada"
+              : "Concluída"
+
+      upsertMarker(dateKey, { tone, label, count: 1 })
+    })
+
+    return markerMap
+  }, [availability, lessons, visibleRange.end, visibleRange.start])
+
+  const selectedLessons = useMemo(
+    () =>
+      lessons
+        .filter((lesson) => activeDate !== null && getLessonDateKey(lesson) === activeDate)
+        .sort(
+          (a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime()
+        ),
+    [activeDate, lessons]
+  )
+
+  const selectedAvailability = useMemo(
+    () => {
+      if (selectedDates.length === 0) {
+        return []
+      }
+
+      return availability
+        .filter((slot) => selectedDates.some((dateKey) => availabilityMatchesDate(slot, dateKey)))
+        .sort((a, b) => {
+          const leftDate = a.start_date || ""
+          const rightDate = b.start_date || ""
+          if (leftDate !== rightDate) {
+            return leftDate.localeCompare(rightDate)
+          }
+          return a.start_time.localeCompare(b.start_time)
+        })
+    },
+    [availability, selectedDates]
+  )
+
+  const groupedSelectedAvailability = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        key: string
+        start_time: string
+        end_time: string
+        dateKeys: string[]
+        slotIds: string[]
+      }
+    >()
+
+    selectedAvailability.forEach((slot) => {
+      const matchedDates = selectedDates.filter((dateKey) => availabilityMatchesDate(slot, dateKey))
+      if (matchedDates.length === 0) {
+        return
+      }
+
+      const groupKey = `${slot.start_time}-${slot.end_time}`
+      const existing = groups.get(groupKey)
+
+      if (existing) {
+        existing.dateKeys.push(...matchedDates)
+        existing.slotIds.push(slot.id)
+        return
+      }
+
+      groups.set(groupKey, {
+        key: groupKey,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        dateKeys: [...matchedDates],
+        slotIds: [slot.id]
+      })
+    })
+
+    return Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        dateKeys: Array.from(new Set(group.dateKeys)).sort(),
+        slotIds: Array.from(new Set(group.slotIds))
+      }))
+      .sort((a, b) => a.start_time.localeCompare(b.start_time))
+  }, [selectedAvailability, selectedDates])
+
+  const hasSelection = selectedDates.length > 0
+  const selectableDaysWithContent = useMemo(
+    () =>
+      Object.entries(markersByDate)
+        .filter(([, markers]) => markers.length > 0)
+        .map(([dateKey]) => dateKey)
+        .sort(),
+    [markersByDate]
+  )
+
+  const handleSelectAllWithContent = () => {
+    setSelectedDates(selectableDaysWithContent)
+    setActiveDate(selectableDaysWithContent[0] || null)
+  }
+
+  const handleClearSelection = () => {
+    setSelectedDates([])
+    setActiveDate(null)
+  }
+
+  return (
+    <div className="dashboard-card actions-card span-2" id="agenda">
+      <ScheduleCalendar
+        month={displayMonth}
+        selectedDates={selectedDates}
+        activeDate={activeDate ?? undefined}
+        markersByDate={markersByDate}
+        onMonthChange={setDisplayMonth}
+        onSelectDate={selectDate}
+        onRangeSelect={handleRangeSelect}
+        title="Agenda interativa"
+        subtitle="Selecione dias no calendário e publique horários em poucos cliques."
+        contextualPanel={
+          <div className="calendar-action-bar">
+            <div className="calendar-action-copy">
+              <strong>1. Selecione os dias</strong>
+              <span>2. Escolha um período</span>
+              <span>3. Publique</span>
+            </div>
+
+            <div className="calendar-action-controls">
+              <select
+                value={selectedPreset}
+                onChange={(event) =>
+                  handlePresetChange(
+                    event.target.value as (typeof TIME_RANGE_PRESETS)[number]["value"]
+                  )
+                }
+              >
+                {TIME_RANGE_PRESETS.map((preset) => (
+                  <option key={preset.value} value={preset.value}>
+                    {preset.label}
+                  </option>
+                ))}
+              </select>
+
+              {selectedPreset === "custom" && (
+                <div className="calendar-custom-range">
+                  <input
+                    type="time"
+                    value={draft.start_time}
+                    onChange={(event) =>
+                      setDraft((prev) => ({ ...prev, start_time: event.target.value }))
+                    }
+                  />
+                  <input
+                    type="time"
+                    value={draft.end_time}
+                    onChange={(event) =>
+                      setDraft((prev) => ({ ...prev, end_time: event.target.value }))
+                    }
+                  />
+                </div>
+              )}
+
+            <div className="calendar-action-buttons">
+                <button
+                  className="action-btn"
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={publishing || !hasSelection}
+                >
+                  {publishing ? "Publicando..." : `Publicar em ${selectedDates.length || 0} dia(s)`}
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      />
+
+      <div className="calendar-secondary-actions below-calendar">
+        <button className="calendar-ghost-btn" type="button" onClick={resetSelectionToToday}>
+          Hoje
+        </button>
+        <button
+          className="calendar-ghost-btn"
+          type="button"
+          onClick={handleSelectAllWithContent}
+          disabled={selectableDaysWithContent.length === 0}
+        >
+          Selecionar com eventos
+        </button>
+        <button
+          className="calendar-ghost-btn danger"
+          type="button"
+          onClick={handleClearSelection}
+          disabled={!hasSelection}
+        >
+          Limpar seleção
+        </button>
+      </div>
+
+      {(requestError || publishError) && (
+        <div className="schedule-errors">
+          {requestError && <p className="confirm-error">{requestError}</p>}
+          {publishError && <p className="confirm-error">{publishError}</p>}
+        </div>
+      )}
+
+      <div className="schedule-detail-card schedule-editor-card">
+        <div className="schedule-selection-bar">
+          <div>
+            <h4>{selectedDates.length} dia(s) selecionado(s)</h4>
+            <p>
+              {activeDate
+                ? `Dia ativo: ${formatLongDate(activeDate)}. A publicação abaixo vale para toda a seleção.`
+                : "Nenhum dia ativo. Selecione um ou mais dias para publicar horários."}
+            </p>
+          </div>
+        </div>
+
+        <div className="schedule-selection-chip-list">
+          {selectedDates.map((dateKey) => (
+            <button
+              key={dateKey}
+              type="button"
+              className={`schedule-selection-chip${dateKey === activeDate ? " active" : ""}`}
+              onClick={() => {
+                setActiveDate(dateKey)
+                const date = parseDateKey(dateKey)
+                setDisplayMonth(new Date(date.getFullYear(), date.getMonth(), 1))
+              }}
+            >
+              {parseDateKey(dateKey).toLocaleDateString("pt-BR", {
+                day: "2-digit",
+                month: "2-digit"
+              })}
+            </button>
+          ))}
+        </div>
+
+        <div className="schedule-section">
+          <div className="schedule-section-head">
+            <strong>Disponibilidades na seleção</strong>
+            {groupedSelectedAvailability.length > 0 && (
+              <button
+                className="cancel-btn"
+                type="button"
+                onClick={() =>
+                  void handleDeleteAvailabilityGroup(
+                    groupedSelectedAvailability.flatMap((group) => group.slotIds)
+                  )
+                }
+              >
+                Remover todas
+              </button>
+            )}
+          </div>
+
+          {!hasSelection ? (
+            <p className="schedule-helper">Selecione um ou mais dias para ver as disponibilidades publicadas.</p>
+          ) : groupedSelectedAvailability.length === 0 ? (
+            <p className="schedule-helper">Nenhuma disponibilidade publicada para os dias selecionados.</p>
+          ) : (
+            <div className="schedule-entry-list">
+              {groupedSelectedAvailability.map((group) => (
+                <div key={group.key} className="schedule-entry availability">
+                  <div>
+                    <strong>{group.start_time} - {group.end_time}</strong>
+                    <span>{formatDateRanges(group.dateKeys)}</span>
+                  </div>
+                  <button
+                    className="cancel-btn"
+                    type="button"
+                    onClick={() => void handleDeleteAvailabilityGroup(group.slotIds)}
+                  >
+                    Remover grupo
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="schedule-section">
+          <strong>Solicitações e aulas do dia ativo</strong>
+
+          {activeDate === null ? (
+            <p className="schedule-helper">Selecione um dia para ver solicitações e aulas.</p>
+          ) : selectedLessons.length === 0 ? (
+            <p className="schedule-helper">Nenhuma aula agendada nesta data.</p>
+          ) : (
+            <div className="schedule-entry-list">
+              {selectedLessons.map((lesson) => (
+                <div key={lesson.id} className={`schedule-entry ${lesson.status}`}>
+                  <div className="schedule-lesson-meta">
+                    <strong>
+                      {new Date(lesson.scheduled_start).toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit"
+                      })}{" "}
+                      • {formatLessonDuration(lesson)}
+                    </strong>
+                    <span>{lessonStatusLabel[lesson.status] || lesson.status}</span>
+                    <span>Aluno: {lesson.student_email || "Não informado"}</span>
+                  </div>
+
+                  {lesson.status === "pending_instructor" && (
+                    <div className="booking-actions">
+                      <button
+                        className="action-btn"
+                        type="button"
+                        onClick={() => void onConfirm(lesson.id)}
+                        disabled={confirmingId === lesson.id}
+                      >
+                        {confirmingId === lesson.id ? "Confirmando..." : "Confirmar"}
+                      </button>
+                      <button
+                        className="cancel-btn"
+                        type="button"
+                        onClick={() => void onCancel(lesson.id)}
+                        disabled={cancelingId === lesson.id}
+                      >
+                        {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
+                      </button>
+                    </div>
+                  )}
+
+                  {lesson.status === "confirmed" && (
+                    <>
+                      <div className="schedule-confirm-row">
+                        <input
+                          type="text"
+                          placeholder="Código do aluno"
+                          value={codeInputs[lesson.id] || ""}
+                          onChange={(event) =>
+                            setCodeInputs((prev) => ({
+                              ...prev,
+                              [lesson.id]: event.target.value
+                            }))
+                          }
+                        />
+                        <button
+                          className="action-btn"
+                          type="button"
+                          onClick={() => void onValidateCode(lesson.id, codeInputs[lesson.id] || "")}
+                          disabled={validatingId === lesson.id}
+                        >
+                          {validatingId === lesson.id ? "Validando..." : "Validar código"}
+                        </button>
+                        <button
+                          className="cancel-btn"
+                          type="button"
+                          onClick={() => void onCancel(lesson.id)}
+                          disabled={cancelingId === lesson.id}
+                        >
+                          {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
+                        </button>
+                      </div>
+                      {validationErrors[lesson.id] && (
+                        <p className="confirm-error inline-error">{validationErrors[lesson.id]}</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
 export function InstructorPortal({ user }: DashboardProps) {
   const [stats, setStats] = useState<InstructorStats | null>(null)
   const [earnings, setEarnings] = useState<Earnings | null>(null)
@@ -527,14 +693,13 @@ export function InstructorPortal({ user }: DashboardProps) {
   const [reviews, setReviews] = useState<Review[]>([])
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [requestError, setRequestError] = useState<string | null>(null)
-  const [confirmedError, setConfirmedError] = useState<string | null>(null)
-  const [codeInputs, setCodeInputs] = useState<Record<string, string>>({})
+  const [validationErrors, setValidationErrors] = useState<Record<string, string | null>>({})
   const [validatingId, setValidatingId] = useState<string | null>(null)
   const [cancelingId, setCancelingId] = useState<string | null>(null)
   const [historyFilter, setHistoryFilter] = useState<"all" | "completed" | "cancelled">("completed")
 
   useEffect(() => {
-    fetchData()
+    void fetchData()
   }, [])
 
   const fetchData = async () => {
@@ -575,16 +740,18 @@ export function InstructorPortal({ user }: DashboardProps) {
     }
   }
 
-  const handleValidateCode = async (lessonId: string) => {
+  const handleValidateCode = async (lessonId: string, code: string) => {
     setValidatingId(lessonId)
-    setConfirmedError(null)
+    setValidationErrors((prev) => ({ ...prev, [lessonId]: null }))
     try {
-      const code = codeInputs[lessonId] || ""
       await api.lessons.confirmCode(lessonId, code)
-      setCodeInputs((prev) => ({ ...prev, [lessonId]: "" }))
+      setValidationErrors((prev) => ({ ...prev, [lessonId]: null }))
       await fetchData()
     } catch (err) {
-      setConfirmedError(err instanceof Error ? err.message : "Falha ao validar código")
+      setValidationErrors((prev) => ({
+        ...prev,
+        [lessonId]: err instanceof Error ? err.message : "Falha ao validar código"
+      }))
     } finally {
       setValidatingId(null)
     }
@@ -595,7 +762,7 @@ export function InstructorPortal({ user }: DashboardProps) {
     const confirmMessage =
       lesson?.status === "confirmed"
         ? "Cancelar esta aula confirmada?"
-        : "Cancelar esta solicitacao de aula?"
+        : "Cancelar esta solicitação de aula?"
 
     if (!window.confirm(confirmMessage)) {
       return
@@ -603,7 +770,7 @@ export function InstructorPortal({ user }: DashboardProps) {
 
     setCancelingId(lessonId)
     if (lesson?.status === "confirmed") {
-      setConfirmedError(null)
+      setValidationErrors((prev) => ({ ...prev, [lessonId]: null }))
     } else {
       setRequestError(null)
     }
@@ -613,21 +780,13 @@ export function InstructorPortal({ user }: DashboardProps) {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Falha ao cancelar aula"
       if (lesson?.status === "confirmed") {
-        setConfirmedError(message)
+        setValidationErrors((prev) => ({ ...prev, [lessonId]: message }))
       } else {
         setRequestError(message)
       }
     } finally {
       setCancelingId(null)
     }
-  }
-
-  const formatLessonDuration = (lesson: Lesson) => {
-    const hours =
-      (new Date(lesson.scheduled_end).getTime() - new Date(lesson.scheduled_start).getTime()) /
-      (1000 * 60 * 60)
-
-    return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`
   }
 
   const historicalLessons = useMemo(() => {
@@ -655,14 +814,12 @@ export function InstructorPortal({ user }: DashboardProps) {
       <h1>📊 Central do Instrutor</h1>
 
       <div className="dashboard-grid">
-        {/* Welcome Section */}
         <div className="dashboard-card welcome-card">
           <h2>Bem-vindo, {stats?.name}!</h2>
           <p className="location">📍 {stats?.city}, {stats?.state}</p>
           <p className="price">R$ {stats?.price_per_hour.toFixed(2)}/hora</p>
         </div>
 
-        {/* Earnings Section */}
         <div className="dashboard-card earnings-card compact-summary-card" id="ganhos">
           <div className="compact-summary-header">
             <h3>💰 Ganhos e indicadores</h3>
@@ -696,113 +853,21 @@ export function InstructorPortal({ user }: DashboardProps) {
           </div>
         </div>
 
-        {/* Booking Requests */}
-        <div className="dashboard-card actions-card" id="solicitacoes">
-          <h3>📅 Solicitações de Agendamento</h3>
-          {requestError && <p className="confirm-error">{requestError}</p>}
-          {lessons.filter((lesson) => lesson.status === "pending_instructor").length === 0 ? (
-            <p>Nenhuma solicitação pendente.</p>
-          ) : (
-            <div className="booking-list">
-              {lessons
-                .filter((lesson) => lesson.status === "pending_instructor")
-                .map((lesson) => (
-                  <div key={lesson.id} className="booking-item">
-                    <div>
-                      <strong>Aula</strong> em {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
-                    </div>
-                    <div>
-                      <strong>Duração:</strong> {formatLessonDuration(lesson)}
-                    </div>
-                    <div>
-                      <strong>Aluno:</strong> {lesson.student_email || "Não informado"}
-                    </div>
-                    <div className="booking-actions">
-                      <button
-                        className="action-btn"
-                        onClick={() => handleConfirm(lesson.id)}
-                        disabled={confirmingId === lesson.id}
-                      >
-                        {confirmingId === lesson.id ? "Confirmando..." : "Confirmar"}
-                      </button>
-                      <button
-                        className="cancel-btn"
-                        onClick={() => handleCancel(lesson.id)}
-                        disabled={cancelingId === lesson.id}
-                      >
-                        {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          )}
-        </div>
+        <InstructorScheduleBoard
+          lessons={lessons}
+          onConfirm={handleConfirm}
+          onValidateCode={handleValidateCode}
+          onCancel={handleCancel}
+          confirmingId={confirmingId}
+          validatingId={validatingId}
+          cancelingId={cancelingId}
+          requestError={requestError}
+          validationErrors={validationErrors}
+        />
 
-        {/* Confirmed Lessons */}
-        <div className="dashboard-card actions-card" id="confirmadas">
-          <h3>✅ Aulas Confirmadas</h3>
-          {confirmedError && <p className="confirm-error">{confirmedError}</p>}
-          {lessons.filter((lesson) => lesson.status === "confirmed").length === 0 ? (
-            <p>Nenhuma aula confirmada.</p>
-          ) : (
-            <div className="booking-list">
-              {lessons
-                .filter((lesson) => lesson.status === "confirmed")
-                .map((lesson) => (
-                  <div key={lesson.id} className="booking-item">
-                    <div>
-                      <strong>Data:</strong>{" "}
-                      {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
-                    </div>
-                    <div>
-                      <strong>Duração:</strong> {formatLessonDuration(lesson)}
-                    </div>
-                    <div>
-                      <strong>Aluno:</strong> {lesson.student_email || "Não informado"}
-                    </div>
-                    <div className="code-row">
-                      <input
-                        type="text"
-                        placeholder="Código do aluno"
-                        value={codeInputs[lesson.id] || ""}
-                        onChange={(e) =>
-                          setCodeInputs((prev) => ({
-                            ...prev,
-                            [lesson.id]: e.target.value
-                          }))
-                        }
-                      />
-                      <button
-                        className="action-btn"
-                        onClick={() => handleValidateCode(lesson.id)}
-                        disabled={validatingId === lesson.id}
-                      >
-                        {validatingId === lesson.id ? "Validando..." : "Validar Código"}
-                      </button>
-                      <button
-                        className="cancel-btn"
-                        onClick={() => handleCancel(lesson.id)}
-                        disabled={cancelingId === lesson.id}
-                      >
-                        {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          )}
-        </div>
-
-        {/* Availability */}
-        <div className="dashboard-card actions-card span-2" id="disponibilidade">
-          <AvailabilitySection />
-        </div>
-
-        {/* Completed Lessons */}
         <div className="dashboard-card actions-card" id="concluidas">
           <div className="section-header-with-filter">
-            <h3>🏁 Aulas Concluídas</h3>
+            <h3>🏁 Histórico</h3>
             <div className="section-filter">
               <label htmlFor="history-filter">Filtrar</label>
               <select
@@ -823,41 +888,38 @@ export function InstructorPortal({ user }: DashboardProps) {
           ) : (
             <div className="booking-list">
               {historicalLessons.map((lesson) => (
-                  <div key={lesson.id} className="booking-item">
-                    <div>
-                      <strong>Data:</strong>{" "}
-                      {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
-                    </div>
-                    <div>
-                      <strong>Status:</strong> {lesson.status === "completed" ? "Concluída" : "Cancelada"}
-                    </div>
-                    <div>
-                      <strong>Aluno:</strong> {lesson.student_email || "Não informado"}
-                    </div>
-                    {lesson.status === "completed" && (
-                      <div>
-                        <strong>Confirmado em:</strong>{" "}
-                        {lesson.code_confirmed_at
-                          ? new Date(lesson.code_confirmed_at).toLocaleString("pt-BR")
-                          : "Não informado"}
-                      </div>
-                    )}
-                    {lesson.status === "completed" && (
-                      <div>
-                        <strong>Nota:</strong>{" "}
-                        {lesson.review_rating ? lesson.review_rating : "Sem avaliação"}
-                      </div>
-                    )}
-                    <div>
-                      <strong>Total:</strong> R$ {lesson.total_price.toFixed(2)}
-                    </div>
+                <div key={lesson.id} className="booking-item">
+                  <div>
+                    <strong>Data:</strong> {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
                   </div>
-                ))}
+                  <div>
+                    <strong>Status:</strong> {lesson.status === "completed" ? "Concluída" : "Cancelada"}
+                  </div>
+                  <div>
+                    <strong>Aluno:</strong> {lesson.student_email || "Não informado"}
+                  </div>
+                  {lesson.status === "completed" && (
+                    <div>
+                      <strong>Confirmado em:</strong>{" "}
+                      {lesson.code_confirmed_at
+                        ? new Date(lesson.code_confirmed_at).toLocaleString("pt-BR")
+                        : "Não informado"}
+                    </div>
+                  )}
+                  {lesson.status === "completed" && (
+                    <div>
+                      <strong>Nota:</strong> {lesson.review_rating ? lesson.review_rating : "Sem avaliação"}
+                    </div>
+                  )}
+                  <div>
+                    <strong>Total:</strong> R$ {lesson.total_price.toFixed(2)}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
 
-        {/* Reviews */}
         <div className="dashboard-card actions-card" id="avaliacoes">
           <h3>⭐ Avaliações Recentes</h3>
           {reviews.length === 0 ? (

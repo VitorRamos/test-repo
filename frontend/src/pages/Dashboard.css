@@ -724,6 +724,10 @@
   font-size: 0.9rem;
 }
 
+.confirm-error.inline-error {
+  margin: 0;
+}
+
 .action-btn {
   background: linear-gradient(135deg, var(--accent) 0%, #0284c7 100%);
   color: white;
@@ -889,5 +893,348 @@
   .secondary-action-btn {
     font-size: 0.85rem;
     padding: 0.75rem;
+  }
+}
+
+.schedule-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.schedule-detail-column {
+  display: grid;
+  gap: 1rem;
+}
+
+.schedule-detail-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+  padding: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.schedule-detail-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.schedule-detail-header h4 {
+  margin: 0 0 0.25rem;
+  color: var(--text-h);
+}
+
+.schedule-detail-header p {
+  margin: 0;
+  color: var(--text);
+}
+
+.schedule-helper {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.schedule-section {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.schedule-section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.schedule-section-head .secondary-action-btn {
+  width: auto;
+  align-self: auto;
+}
+
+.schedule-entry-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.schedule-entry {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.schedule-entry.availability {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.schedule-entry.pending_instructor {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.schedule-entry.confirmed {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.schedule-entry.completed {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.schedule-entry.cancelled {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.schedule-entry .cancel-btn {
+  width: auto;
+  padding: 0.7rem 0.9rem;
+}
+
+.schedule-lesson-meta {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--text);
+}
+
+.schedule-confirm-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.schedule-confirm-row input {
+  min-width: 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-family: var(--sans);
+}
+
+.schedule-errors {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.schedule-editor-card {
+  margin-top: 1rem;
+}
+
+.schedule-selection-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.schedule-selection-bar h4 {
+  margin: 0 0 0.25rem;
+  color: var(--text-h);
+}
+
+.schedule-selection-bar p {
+  margin: 0;
+  color: var(--text);
+}
+
+.schedule-selection-bar .secondary-action-btn {
+  width: auto;
+  align-self: auto;
+}
+
+.schedule-selection-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.schedule-selection-chip {
+  border: 1px solid #bae6fd;
+  background: #f0f9ff;
+  color: #0c4a6e;
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  font-weight: 700;
+  font-family: var(--sans);
+}
+
+.schedule-selection-chip.active {
+  background: #0ea5e9;
+  border-color: #0284c7;
+  color: white;
+}
+
+.schedule-inline-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.calendar-action-bar {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.calendar-action-copy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.calendar-action-copy strong {
+  color: var(--text-h);
+}
+
+.calendar-action-copy span {
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #dff4ff;
+  color: #0c4a6e;
+  font-weight: 600;
+}
+
+.calendar-action-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.calendar-action-controls select,
+.calendar-custom-range input {
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  background: white;
+  font-family: var(--sans);
+}
+
+.calendar-custom-range {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.calendar-action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.calendar-action-buttons .secondary-action-btn,
+.calendar-action-buttons .action-btn {
+  width: auto;
+}
+
+.calendar-secondary-actions {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  padding-top: 0.15rem;
+  border-top: 1px solid rgba(14, 165, 233, 0.12);
+}
+
+.calendar-secondary-actions.below-calendar {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+}
+
+.calendar-ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0.6rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: rgba(255, 255, 255, 0.9);
+  color: #0f172a;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: all 0.18s ease;
+}
+
+.calendar-ghost-btn:hover {
+  border-color: #7dd3fc;
+  background: white;
+}
+
+.calendar-ghost-btn.danger {
+  border-color: #fecaca;
+  color: #991b1b;
+  background: #fff7f7;
+}
+
+.calendar-ghost-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.calendar-toolbar-clear {
+  width: auto;
+  align-self: auto;
+  margin: 0;
+  min-height: 42px;
+  padding: 0.65rem 1rem;
+}
+
+@media (max-width: 1100px) {
+  .schedule-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .schedule-section-head,
+  .schedule-detail-header,
+  .schedule-selection-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .schedule-confirm-row {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-section-head .secondary-action-btn,
+  .schedule-entry .cancel-btn,
+  .schedule-selection-bar .secondary-action-btn,
+  .schedule-inline-actions .action-btn,
+  .calendar-action-buttons .secondary-action-btn,
+  .calendar-action-buttons .action-btn {
+    width: 100%;
+  }
+
+  .calendar-action-bar,
+  .calendar-action-controls,
+  .calendar-custom-range,
+  .calendar-action-buttons,
+  .calendar-secondary-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .calendar-ghost-btn {
+    width: 100%;
   }
 }

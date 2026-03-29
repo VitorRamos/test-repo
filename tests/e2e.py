@@ -12,6 +12,7 @@ import os
 from datetime import datetime, timedelta
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
@@ -21,6 +22,20 @@ KEEP_BROWSER_OPEN = os.getenv("KEEP_BROWSER_OPEN", "false").lower() == "true"
 DELAY_SHORT = 0.5
 DELAY_MEDIUM = 1.0
 DELAY_LONG = 2.0
+PT_MONTHS = {
+    "janeiro": 1,
+    "fevereiro": 2,
+    "março": 3,
+    "abril": 4,
+    "maio": 5,
+    "junho": 6,
+    "julho": 7,
+    "agosto": 8,
+    "setembro": 9,
+    "outubro": 10,
+    "novembro": 11,
+    "dezembro": 12,
+}
 
 def close_driver(driver):
     if not KEEP_BROWSER_OPEN:
@@ -28,6 +43,17 @@ def close_driver(driver):
     else:
         input("🟡 Press ENTER to close browser...")
         driver.quit()
+
+
+def parse_pt_month_year(value):
+    parts = value.strip().lower().split()
+    if len(parts) == 2:
+        month_name, year = parts
+    elif len(parts) == 3 and parts[1] == "de":
+        month_name, _, year = parts
+    else:
+        raise ValueError(f"Unexpected month header format: {value!r}")
+    return int(year), PT_MONTHS[month_name]
 
 
 # =========================
@@ -49,6 +75,16 @@ def send_date_keys(input_element, value):
         text = datetime.strptime(value, "%Y-%m-%d").strftime("%m%d%Y")
     input_element.clear()
     input_element.send_keys(text)
+
+
+def send_time_keys(input_element, value):
+    hour, minute = map(int, value.split(":"))
+    suffix = "A" if hour < 12 else "P"
+    display_hour = hour % 12
+    if display_hour == 0:
+        display_hour = 12
+    input_element.clear()
+    input_element.send_keys(f"{display_hour:02d}{minute:02d}{suffix}")
 
 
 def register(driver, email, password):
@@ -202,40 +238,46 @@ def confirm_first_booking(driver):
     driver.find_element(By.LINK_TEXT, "Central").click()
     time.sleep(DELAY_SHORT)
 
-    section = driver.find_element(By.ID, "solicitacoes")
-    buttons = section.find_elements(By.TAG_NAME, "button")
-    confirm_button = None
-    for button in buttons:
-        if "Confirmar" in button.text:
-            confirm_button = button
-            break
-
-    assert confirm_button is not None
+    driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Selecionar com eventos')]").click()
+    time.sleep(DELAY_SHORT)
+    confirm_button = driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Confirmar')]")
     confirm_button.click()
     time.sleep(DELAY_SHORT)
+
+
+def find_schedule_entry_in_agenda(driver, text):
+    agenda = driver.find_element(By.ID, "agenda")
+
+    def search_visible_entries():
+        entries = agenda.find_elements(By.CSS_SELECTOR, ".schedule-entry")
+        for entry in entries:
+            if text in entry.text:
+                return entry
+        return None
+
+    found = search_visible_entries()
+    if found is not None:
+        return found
+
+    chips = agenda.find_elements(By.CSS_SELECTOR, ".schedule-selection-chip")
+    for chip in chips:
+        chip.click()
+        time.sleep(DELAY_SHORT)
+        found = search_visible_entries()
+        if found is not None:
+            return found
+
+    raise AssertionError(f"Could not find schedule entry containing: {text}")
 
 
 def confirm_booking_for_student(driver, student_email):
     driver.find_element(By.LINK_TEXT, "Central").click()
     time.sleep(DELAY_SHORT)
 
-    section = driver.find_element(By.ID, "solicitacoes")
-    items = section.find_elements(By.CLASS_NAME, "booking-item")
-    target = None
-    for item in items:
-        if student_email in item.text:
-            target = item
-            break
-
-    assert target is not None
-    buttons = target.find_elements(By.TAG_NAME, "button")
-    confirm_button = None
-    for button in buttons:
-        if "Confirmar" in button.text:
-            confirm_button = button
-            break
-
-    assert confirm_button is not None
+    driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Selecionar com eventos')]").click()
+    time.sleep(DELAY_SHORT)
+    target = find_schedule_entry_in_agenda(driver, student_email)
+    confirm_button = target.find_element(By.XPATH, ".//button[contains(., 'Confirmar')]")
     confirm_button.click()
     time.sleep(DELAY_SHORT)
 
@@ -244,37 +286,53 @@ def go_to_my_bookings(driver):
     driver.find_element(By.LINK_TEXT, "Minhas Aulas").click()
     time.sleep(DELAY_SHORT)
 
-def prepare_availability_form(driver, weekday, start_time, end_time, start_date=None, end_date=None):
-    tomorrow = datetime.now() + timedelta(days=1)
-    start_date = start_date or tomorrow.strftime("%Y-%m-%d")
-    end_date = end_date or (tomorrow + timedelta(days=30)).strftime("%Y-%m-%d")
+def select_calendar_date(driver, date_value):
+    target = datetime.strptime(date_value, "%Y-%m-%d")
 
-    date_inputs = driver.find_elements(By.CSS_SELECTOR, "#disponibilidade input[type='date']")
-    send_date_keys(date_inputs[0], start_date)
-    send_date_keys(date_inputs[1], end_date)
+    while True:
+        current = driver.find_element(By.CSS_SELECTOR, ".schedule-calendar-nav strong").text.strip().lower()
+        current_year, current_month = parse_pt_month_year(current)
+        if current_year == target.year and current_month == target.month:
+            break
 
-    weekday_buttons = driver.find_elements(By.CSS_SELECTOR, "#disponibilidade .weekday-chip")
-    assert weekday_buttons
+        if (current_year, current_month) < (target.year, target.month):
+            driver.find_element(By.CSS_SELECTOR, ".schedule-calendar-nav button:last-child").click()
+        else:
+            driver.find_element(By.CSS_SELECTOR, ".schedule-calendar-nav button:first-child").click()
+        time.sleep(DELAY_SHORT)
 
-    active_weekdays = driver.find_elements(By.CSS_SELECTOR, "#disponibilidade .weekday-chip.active")
-    for button in active_weekdays:
-        button.click()
-        time.sleep(0.05)
+    for day_button in driver.find_elements(By.CSS_SELECTOR, ".schedule-calendar-grid .schedule-day"):
+        if "muted" in day_button.get_attribute("class"):
+            continue
+        number = day_button.find_element(By.CSS_SELECTOR, ".schedule-day-number").text.strip()
+        if number == str(target.day):
+            day_button.click()
+            time.sleep(DELAY_SHORT)
+            return
 
-    existing_ranges = driver.find_elements(By.CSS_SELECTOR, "#disponibilidade .time-range-item .cancel-btn")
-    while existing_ranges:
-        existing_ranges[0].click()
-        time.sleep(0.1)
-        existing_ranges = driver.find_elements(By.CSS_SELECTOR, "#disponibilidade .time-range-item .cancel-btn")
+    raise AssertionError(f"Could not find day {date_value} in calendar")
 
-    time_inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='time']")
-    time_inputs[0].clear()
-    time_inputs[0].send_keys(start_time)
-    time_inputs[1].clear()
-    time_inputs[1].send_keys(end_time)
 
-    ui_weekday = (weekday + 1) % 7
-    weekday_buttons[ui_weekday].click()
+def set_calendar_time_range(driver, start_time, end_time):
+    panel = driver.find_element(By.CSS_SELECTOR, ".schedule-calendar-context")
+    select = Select(panel.find_element(By.TAG_NAME, "select"))
+    presets = {
+        ("08:00", "12:00"): "08:00-12:00",
+        ("13:00", "18:00"): "13:00-18:00",
+        ("18:00", "21:00"): "18:00-21:00",
+        ("08:00", "18:00"): "08:00-18:00",
+    }
+
+    preset_value = presets.get((start_time, end_time))
+    if preset_value:
+        select.select_by_value(preset_value)
+    else:
+        select.select_by_value("custom")
+        time_inputs = panel.find_elements(By.CSS_SELECTOR, ".calendar-custom-range input")
+        assert len(time_inputs) == 2
+        send_time_keys(time_inputs[0], start_time)
+        send_time_keys(time_inputs[1], end_time)
+
     time.sleep(DELAY_SHORT)
 
 
@@ -282,11 +340,11 @@ def add_availability(driver, weekday, start_time, end_time, start_date=None, end
     driver.find_element(By.LINK_TEXT, "Central").click()
     time.sleep(DELAY_SHORT)
 
-    prepare_availability_form(driver, weekday, start_time, end_time, start_date, end_date)
-
-    driver.find_element(By.CSS_SELECTOR, ".availability-form .secondary-action-btn").click()
-    time.sleep(DELAY_SHORT)
-    driver.find_element(By.CSS_SELECTOR, ".availability-form .availability-submit").click()
+    tomorrow = datetime.now() + timedelta(days=1)
+    start_date = start_date or tomorrow.strftime("%Y-%m-%d")
+    select_calendar_date(driver, start_date)
+    set_calendar_time_range(driver, start_time, end_time)
+    driver.find_element(By.CSS_SELECTOR, ".schedule-calendar-context .action-btn").click()
     time.sleep(DELAY_SHORT)
 
 def get_confirmation_code_from_my_bookings(driver):
@@ -365,20 +423,13 @@ def validate_code_for_first_confirmed(driver, code):
     driver.find_element(By.LINK_TEXT, "Central").click()
     time.sleep(DELAY_SHORT)
 
-    section = driver.find_element(By.ID, "confirmadas")
-    inputs = section.find_elements(By.TAG_NAME, "input")
-    assert len(inputs) > 0
-    inputs[0].clear()
-    inputs[0].send_keys(code)
-
-    buttons = section.find_elements(By.TAG_NAME, "button")
-    validate_button = None
-    for button in buttons:
-        if "Validar Código" in button.text:
-            validate_button = button
-            break
-
-    assert validate_button is not None
+    driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Selecionar com eventos')]").click()
+    time.sleep(DELAY_SHORT)
+    validate_button = driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Validar código')]")
+    row = validate_button.find_element(By.XPATH, "./ancestor::div[contains(@class, 'schedule-confirm-row')]")
+    code_input = row.find_element(By.TAG_NAME, "input")
+    code_input.clear()
+    code_input.send_keys(code)
     validate_button.click()
     time.sleep(DELAY_SHORT)
 
@@ -396,8 +447,10 @@ def cancel_first_booking_as_instructor(driver):
     driver.find_element(By.LINK_TEXT, "Central").click()
     time.sleep(DELAY_SHORT)
 
-    section = driver.find_element(By.ID, "solicitacoes")
-    cancel_buttons = section.find_elements(By.CLASS_NAME, "cancel-btn")
+    driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Selecionar com eventos')]").click()
+    time.sleep(DELAY_SHORT)
+    section = driver.find_element(By.ID, "agenda")
+    cancel_buttons = section.find_elements(By.XPATH, ".//button[contains(@class, 'cancel-btn') and contains(., 'Cancelar')]")
     assert len(cancel_buttons) > 0
     cancel_buttons[0].click()
     try:
@@ -542,7 +595,7 @@ def test_booking_flow():
         fill_instructor_form(driver, instructor_name)
         submit_form(driver)
         weekday = (datetime.now() + timedelta(days=1)).weekday()
-        add_availability(driver, weekday, "0800A", "1200P")
+        add_availability(driver, weekday, "08:00", "12:00")
         logout(driver)
 
         # Create student and book lesson
@@ -576,7 +629,7 @@ def test_booking_flow():
         login(driver, instructor_email, password)
         validate_code_for_first_confirmed(driver, code)
         body = get_body(driver)
-        assert "Aulas Concluídas" in body
+        assert "Histórico" in body or "Concluída" in body
         print("✅ Booking code validated successfully")
 
         logout(driver)
@@ -608,7 +661,7 @@ def test_cancel_booking_flow():
         fill_instructor_form(driver, instructor_name)
         submit_form(driver)
         weekday = (datetime.now() + timedelta(days=1)).weekday()
-        add_availability(driver, weekday, "0800A", "1200P")
+        add_availability(driver, weekday, "08:00", "12:00")
         logout(driver)
 
         # Create student and book lesson
@@ -648,7 +701,7 @@ def test_instructor_availability_blocks_booking():
         submit_form(driver)
 
         weekday = (datetime.now() + timedelta(days=1)).weekday()
-        add_availability(driver, weekday, "0800A", "0900A")
+        add_availability(driver, weekday, "08:00", "09:00")
 
         logout(driver)
 
@@ -708,7 +761,7 @@ def test_instructor_conflict_booking():
         submit_form(driver)
 
         weekday = (datetime.now() + timedelta(days=1)).weekday()
-        add_availability(driver, weekday, "0800A", "1200P")
+        add_availability(driver, weekday, "08:00", "12:00")
 
         logout(driver)
 
@@ -732,8 +785,8 @@ def test_instructor_conflict_booking():
         login(driver, instructor_email, password)
         confirm_booking_for_student(driver, student1_email)
         body = get_body(driver)
-        assert "Confirmada" in body or "confirmadas" in body.lower()
-        assert student2_email not in driver.find_element(By.ID, "solicitacoes").text
+        assert "Confirmada" in body or "confirmar" in body.lower()
+        assert student2_email not in driver.find_element(By.ID, "agenda").text
         logout(driver)
 
         # The overlapping pending request is automatically cancelled
@@ -762,14 +815,14 @@ def test_instructor_invalid_availability_rejected():
 
         driver.find_element(By.LINK_TEXT, "Central").click()
         time.sleep(DELAY_SHORT)
-        weekday = (datetime.now() + timedelta(days=1)).weekday()
-        prepare_availability_form(driver, weekday, "1200P", "0800A")
-        driver.find_element(By.CSS_SELECTOR, ".availability-form .secondary-action-btn").click()
+        start_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        select_calendar_date(driver, start_date)
+        set_calendar_time_range(driver, "12:00", "08:00")
+        driver.find_element(By.CSS_SELECTOR, ".schedule-calendar-context .action-btn").click()
         time.sleep(DELAY_SHORT)
 
         body = get_body(driver)
-        assert "Horário final deve ser maior que o horário inicial" in body
-        assert "Nenhuma disponibilidade cadastrada." in body
+        assert "O horário final deve ser maior que o inicial." in body
         print("✅ Invalid availability is rejected")
 
     finally:

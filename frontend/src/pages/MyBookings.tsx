@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
+import { ScheduleCalendar } from "../components/ScheduleCalendar"
 import { api } from "../services/api"
 import type { Lesson, User } from "../types"
+import { formatDateKey, parseDateKey, type CalendarMarker } from "../utils/calendar"
 import "./MyBookings.css"
 
 interface MyBookingsProps {
@@ -23,6 +25,17 @@ const statusPriority: Record<string, number> = {
   cancelled: 4
 }
 
+const markerToneByStatus: Record<string, CalendarMarker["tone"]> = {
+  pending_instructor: "pending",
+  confirmed: "confirmed",
+  pending_payment: "pending",
+  completed: "completed",
+  cancelled: "cancelled"
+}
+
+const today = new Date()
+const todayKey = formatDateKey(today)
+
 export function MyBookings({ user }: MyBookingsProps) {
   const [bookings, setBookings] = useState<Lesson[]>([])
   const [loading, setLoading] = useState(true)
@@ -34,7 +47,9 @@ export function MyBookings({ user }: MyBookingsProps) {
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
   const [ratingSubmitting, setRatingSubmitting] = useState<string | null>(null)
   const [publicInputs, setPublicInputs] = useState<Record<string, boolean>>({})
-  const [filter, setFilter] = useState<"all" | "active" | "completed" | "cancelled">("active")
+  const [filter, setFilter] = useState<"all" | "active" | "completed" | "cancelled">("all")
+  const [displayMonth, setDisplayMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
+  const [selectedDate, setSelectedDate] = useState(todayKey)
 
   const sortedBookings = useMemo(() => {
     return [...bookings].sort((a, b) => {
@@ -42,7 +57,7 @@ export function MyBookings({ user }: MyBookingsProps) {
       if (statusDiff !== 0) {
         return statusDiff
       }
-      return new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime()
+      return new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime()
     })
   }, [bookings])
 
@@ -62,8 +77,22 @@ export function MyBookings({ user }: MyBookingsProps) {
   }, [filter, sortedBookings])
 
   useEffect(() => {
-    loadBookings()
+    void loadBookings()
   }, [])
+
+  useEffect(() => {
+    if (filteredBookings.some((lesson) => formatDateKey(new Date(lesson.scheduled_start)) === selectedDate)) {
+      return
+    }
+
+    const nextDate = filteredBookings[0]
+      ? formatDateKey(new Date(filteredBookings[0].scheduled_start))
+      : todayKey
+
+    setSelectedDate(nextDate)
+    const nextMonth = parseDateKey(nextDate)
+    setDisplayMonth(new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1))
+  }, [filteredBookings, selectedDate])
 
   const loadBookings = async () => {
     setLoading(true)
@@ -144,6 +173,42 @@ export function MyBookings({ user }: MyBookingsProps) {
     }
   }
 
+  const markersByDate = useMemo<Record<string, CalendarMarker[]>>(() => {
+    const markerMap: Record<string, CalendarMarker[]> = {}
+
+    filteredBookings.forEach((lesson) => {
+      const dateKey = formatDateKey(new Date(lesson.scheduled_start))
+      const existing = markerMap[dateKey] || []
+      const label = statusLabels[lesson.status] || lesson.status
+      const tone = markerToneByStatus[lesson.status] || "completed"
+      const marker = existing.find((item) => item.label === label && item.tone === tone)
+
+      if (marker) {
+        marker.count = (marker.count || 0) + 1
+      } else {
+        existing.push({ tone, label, count: 1 })
+      }
+
+      markerMap[dateKey] = existing
+    })
+
+    return markerMap
+  }, [filteredBookings])
+
+  const bookingsForSelectedDate = useMemo(
+    () =>
+      filteredBookings.filter(
+        (lesson) => formatDateKey(new Date(lesson.scheduled_start)) === selectedDate
+      ),
+    [filteredBookings, selectedDate]
+  )
+
+  const handleSelectDate = (dateKey: string) => {
+    setSelectedDate(dateKey)
+    const date = parseDateKey(dateKey)
+    setDisplayMonth(new Date(date.getFullYear(), date.getMonth(), 1))
+  }
+
   if (!user || user.role !== "student") {
     return <div className="bookings-container"><p>Acesso negado</p></div>
   }
@@ -178,124 +243,142 @@ export function MyBookings({ user }: MyBookingsProps) {
                 </select>
               </div>
 
-              {filteredBookings.length === 0 ? (
-                <p>Nenhum agendamento encontrado para este filtro.</p>
+              <div className="bookings-calendar-card">
+                <ScheduleCalendar
+                  month={displayMonth}
+                  selectedDates={[selectedDate]}
+                  activeDate={selectedDate}
+                  markersByDate={markersByDate}
+                  onMonthChange={setDisplayMonth}
+                  onSelectDate={handleSelectDate}
+                  title="Agenda do aluno"
+                  subtitle="Navegue pelos agendamentos e ações por data."
+                />
+              </div>
+
+              <div className="bookings-day-header">
+                <h2>{parseDateKey(selectedDate).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}</h2>
+                <span>{bookingsForSelectedDate.length} agendamento(s)</span>
+              </div>
+
+              {bookingsForSelectedDate.length === 0 ? (
+                <p>Nenhum agendamento encontrado para esta data.</p>
               ) : (
                 <div className="bookings-list">
-                  {filteredBookings.map((lesson) => {
-                const start = new Date(lesson.scheduled_start)
-                const end = new Date(lesson.scheduled_end)
-                const durationHours =
-                  Math.round((end.getTime() - start.getTime()) / 36e5 * 10) / 10
+                  {bookingsForSelectedDate.map((lesson) => {
+                    const start = new Date(lesson.scheduled_start)
+                    const end = new Date(lesson.scheduled_end)
+                    const durationHours =
+                      Math.round((end.getTime() - start.getTime()) / 36e5 * 10) / 10
 
-                return (
-                  <div key={lesson.id} className="booking-card">
-                    <div className="booking-header">
-                      <div>
-                        <strong>Instrutor:</strong>{" "}
-                        {instructorNames[lesson.instructor_id] || "Carregando..."}
-                      </div>
-                      <span className="booking-status">
-                        {statusLabels[lesson.status] || lesson.status}
-                      </span>
-                    </div>
-
-                    <div className="booking-info">
-                      <div>
-                        <strong>Data:</strong> {start.toLocaleString("pt-BR")}
-                      </div>
-                      <div>
-                        <strong>Duração:</strong> {durationHours}h
-                      </div>
-                      <div>
-                        <strong>Total:</strong> R$ {lesson.total_price.toFixed(2)}
-                      </div>
-                      {lesson.confirmation_code && lesson.status === "confirmed" && (
-                        <div>
-                          <strong>Código da aula:</strong> {lesson.confirmation_code}
+                    return (
+                      <div key={lesson.id} className="booking-card">
+                        <div className="booking-header">
+                          <div>
+                            <strong>Instrutor:</strong>{" "}
+                            {instructorNames[lesson.instructor_id] || "Carregando..."}
+                          </div>
+                          <span className="booking-status">
+                            {statusLabels[lesson.status] || lesson.status}
+                          </span>
                         </div>
-                      )}
-                    </div>
 
-                    {(lesson.status === "pending_instructor" ||
-                      lesson.status === "confirmed" ||
-                      lesson.status === "pending_payment") && (
-                      <button
-                        className="cancel-btn"
-                        onClick={() => handleCancel(lesson.id)}
-                        disabled={cancellingId === lesson.id}
-                      >
-                        {cancellingId === lesson.id ? "Cancelando..." : "Cancelar agendamento"}
-                      </button>
-                    )}
-
-                    {lesson.status === "completed" && !lesson.has_review && (
-                      <div className="rating-form">
-                        <label>
-                          Avaliação (1-5)
-                          <input
-                            type="number"
-                            min={1}
-                            max={5}
-                            value={ratingInputs[lesson.id] || 5}
-                            onChange={(e) =>
-                              setRatingInputs((prev) => ({
-                                ...prev,
-                                [lesson.id]: Number(e.target.value)
-                              }))
-                            }
-                          />
-                        </label>
-                        <label className="rating-checkbox">
-                          <input
-                            type="checkbox"
-                            checked={publicInputs[lesson.id] ?? true}
-                            onChange={(e) =>
-                              setPublicInputs((prev) => ({
-                                ...prev,
-                                [lesson.id]: e.target.checked
-                              }))
-                            }
-                          />
-                          Tornar avaliação pública
-                        </label>
-                        <label>
-                          Comentário (opcional)
-                          <textarea
-                            rows={2}
-                            value={commentInputs[lesson.id] || ""}
-                            onChange={(e) =>
-                              setCommentInputs((prev) => ({
-                                ...prev,
-                                [lesson.id]: e.target.value
-                              }))
-                            }
-                          />
-                        </label>
-                        <button
-                          className="action-btn"
-                          onClick={() => handleSubmitRating(lesson.id)}
-                          disabled={ratingSubmitting === lesson.id}
-                        >
-                          {ratingSubmitting === lesson.id ? "Enviando..." : "Enviar avaliação"}
-                        </button>
-                      </div>
-                    )}
-
-                    {lesson.status === "completed" && lesson.has_review && (
-                      <div className="rating-form">
-                        <div className="rating-done">
-                          Avaliação enviada ✅ (Nota: {lesson.review_rating ?? "-"})
+                        <div className="booking-info">
+                          <div>
+                            <strong>Data:</strong> {start.toLocaleString("pt-BR")}
+                          </div>
+                          <div>
+                            <strong>Duração:</strong> {durationHours}h
+                          </div>
+                          <div>
+                            <strong>Total:</strong> R$ {lesson.total_price.toFixed(2)}
+                          </div>
+                          {lesson.confirmation_code && lesson.status === "confirmed" && (
+                            <div>
+                              <strong>Código da aula:</strong> {lesson.confirmation_code}
+                            </div>
+                          )}
                         </div>
-                        {lesson.review_comment && (
-                          <div className="rating-comment">
-                            <strong>Seu comentário:</strong> {lesson.review_comment}
+
+                        {(lesson.status === "pending_instructor" ||
+                          lesson.status === "confirmed" ||
+                          lesson.status === "pending_payment") && (
+                          <button
+                            className="cancel-btn"
+                            onClick={() => handleCancel(lesson.id)}
+                            disabled={cancellingId === lesson.id}
+                          >
+                            {cancellingId === lesson.id ? "Cancelando..." : "Cancelar agendamento"}
+                          </button>
+                        )}
+
+                        {lesson.status === "completed" && !lesson.has_review && (
+                          <div className="rating-form">
+                            <label>
+                              Avaliação (1-5)
+                              <input
+                                type="number"
+                                min={1}
+                                max={5}
+                                value={ratingInputs[lesson.id] || 5}
+                                onChange={(e) =>
+                                  setRatingInputs((prev) => ({
+                                    ...prev,
+                                    [lesson.id]: Number(e.target.value)
+                                  }))
+                                }
+                              />
+                            </label>
+                            <label className="rating-checkbox">
+                              <input
+                                type="checkbox"
+                                checked={publicInputs[lesson.id] ?? true}
+                                onChange={(e) =>
+                                  setPublicInputs((prev) => ({
+                                    ...prev,
+                                    [lesson.id]: e.target.checked
+                                  }))
+                                }
+                              />
+                              Tornar avaliação pública
+                            </label>
+                            <label>
+                              Comentário (opcional)
+                              <textarea
+                                rows={2}
+                                value={commentInputs[lesson.id] || ""}
+                                onChange={(e) =>
+                                  setCommentInputs((prev) => ({
+                                    ...prev,
+                                    [lesson.id]: e.target.value
+                                  }))
+                                }
+                              />
+                            </label>
+                            <button
+                              className="action-btn"
+                              onClick={() => handleSubmitRating(lesson.id)}
+                              disabled={ratingSubmitting === lesson.id}
+                            >
+                              {ratingSubmitting === lesson.id ? "Enviando..." : "Enviar avaliação"}
+                            </button>
+                          </div>
+                        )}
+
+                        {lesson.status === "completed" && lesson.has_review && (
+                          <div className="rating-form">
+                            <div className="rating-done">
+                              Avaliação enviada ✅ (Nota: {lesson.review_rating ?? "-"})
+                            </div>
+                            {lesson.review_comment && (
+                              <div className="rating-comment">
+                                <strong>Seu comentário:</strong> {lesson.review_comment}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                )
+                    )
                   })}
                 </div>
               )}

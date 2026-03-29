@@ -1,0 +1,227 @@
+.schedule-calendar {
+  display: grid;
+  gap: 1rem;
+}
+
+.schedule-calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.schedule-calendar-header h3 {
+  margin: 0 0 0.25rem;
+  color: var(--text-h);
+}
+
+.schedule-calendar-header p {
+  margin: 0;
+  color: var(--text);
+}
+
+.schedule-calendar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.schedule-calendar-toolbar .secondary-action-btn {
+  width: auto;
+  align-self: auto;
+  margin: 0;
+}
+
+.schedule-calendar-toolbar .cancel-btn {
+  margin: 0;
+}
+
+.schedule-calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+}
+
+.schedule-calendar-nav button {
+  border: none;
+  background: #eff6ff;
+  color: #1d4ed8;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+
+.schedule-calendar-nav strong {
+  min-width: 10rem;
+  text-align: center;
+  text-transform: capitalize;
+  color: var(--text-h);
+}
+
+.schedule-calendar-context {
+  border: 1px solid #bae6fd;
+  background: linear-gradient(180deg, #f8fdff 0%, #eef9ff 100%);
+  border-radius: 14px;
+  padding: 0.9rem;
+}
+
+.schedule-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.schedule-calendar-weekdays span {
+  text-align: center;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.schedule-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.schedule-day {
+  min-height: 7.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.schedule-day:hover {
+  transform: translateY(-1px);
+  border-color: #7dd3fc;
+  box-shadow: 0 10px 24px rgba(14, 116, 144, 0.08);
+}
+
+.schedule-day.active {
+  border-color: #0ea5e9;
+  background: linear-gradient(180deg, #ffffff 0%, #ecfeff 100%);
+}
+
+.schedule-day.selected {
+  border-color: #0ea5e9;
+  background: linear-gradient(180deg, #ffffff 0%, #ecfeff 100%);
+}
+
+.schedule-day.muted {
+  opacity: 0.55;
+}
+
+.schedule-day-number {
+  color: var(--text-h);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.schedule-day-markers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.schedule-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  padding: 0.3rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.schedule-marker.availability {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.schedule-marker.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.schedule-marker.confirmed {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.schedule-marker.completed {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.schedule-marker.cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.schedule-marker.more {
+  justify-content: center;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+@media (max-width: 900px) {
+  .schedule-calendar-weekdays,
+  .schedule-calendar-grid {
+    gap: 0.45rem;
+  }
+
+  .schedule-day {
+    min-height: 6.5rem;
+    padding: 0.6rem;
+  }
+
+  .schedule-marker span {
+    display: none;
+  }
+
+  .schedule-calendar-nav strong {
+    min-width: 8rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .schedule-calendar-header {
+    align-items: stretch;
+  }
+
+  .schedule-calendar-toolbar {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .schedule-day {
+    min-height: 5.5rem;
+    padding: 0.45rem;
+    border-radius: 12px;
+  }
+
+  .schedule-day-number {
+    font-size: 0.95rem;
+  }
+
+  .schedule-marker {
+    font-size: 0.68rem;
+    padding: 0.22rem 0.35rem;
+  }
+}

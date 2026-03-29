@@ -37,6 +37,36 @@
   background: white;
 }
 
+.bookings-calendar-card {
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+  box-shadow: var(--shadow);
+}
+
+.bookings-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.bookings-day-header h2 {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 1.15rem;
+  text-transform: capitalize;
+}
+
+.bookings-day-header span {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .booking-card {
   background: white;
   border: 1px solid var(--border);
@@ -151,5 +181,9 @@
 
   .bookings-container h1 {
     font-size: 1.8rem;
+  }
+
+  .bookings-calendar-card {
+    padding: 0.75rem;
   }
 }

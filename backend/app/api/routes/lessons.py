@@ -288,6 +288,7 @@ def confirm_lesson_code(
         raise HTTPException(status_code=400, detail="Aula não pode ser validada")
 
     if not lesson.confirmation_code or lesson.confirmation_code != data.code:
+        print(lesson.confirmation_code)
         raise HTTPException(status_code=400, detail="Código inválido")
 
     lesson.status = "completed"
