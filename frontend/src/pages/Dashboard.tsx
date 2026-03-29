@@ -259,12 +259,16 @@ function InstructorScheduleBoard({
     }
   }
 
-  const handleDeleteAvailabilityGroup = async (ids: string[]) => {
+  const handleDeleteAvailabilityGroup = async (ids: string[], clearSelection = false) => {
     setPublishError(null)
     try {
       await Promise.all(ids.map((id) => api.instructors.deleteAvailability(id)))
       const idSet = new Set(ids)
       setAvailability((prev) => prev.filter((slot) => !idSet.has(slot.id)))
+      if (clearSelection) {
+        setSelectedDates([])
+        setActiveDate(null)
+      }
     } catch (error) {
       setPublishError(error instanceof Error ? error.message : "Falha ao remover disponibilidades.")
     }
@@ -563,7 +567,8 @@ function InstructorScheduleBoard({
                   type="button"
                   onClick={() =>
                     void handleDeleteAvailabilityGroup(
-                      groupedSelectedAvailability.flatMap((group) => group.slotIds)
+                      groupedSelectedAvailability.flatMap((group) => group.slotIds),
+                      true
                     )
                   }
                 >
