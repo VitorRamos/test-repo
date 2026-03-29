@@ -978,9 +978,29 @@
   align-self: auto;
 }
 
+.schedule-bulk-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
 .schedule-entry-list {
   display: grid;
   gap: 0.6rem;
+}
+
+.schedule-day-group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.schedule-day-group-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.95rem;
 }
 
 .schedule-entry {

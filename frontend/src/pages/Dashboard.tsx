@@ -30,7 +30,28 @@ const lessonStatusLabel: Record<string, string> = {
   pending_payment: "Pagamento pendente"
 }
 
+const activeLessonStatuses = ["pending_instructor", "confirmed", "pending_payment"] as const
+
 const getLessonDateKey = (lesson: Lesson) => formatDateKey(new Date(lesson.scheduled_start))
+
+const isActiveLesson = (lesson: Lesson) => activeLessonStatuses.includes(lesson.status as (typeof activeLessonStatuses)[number])
+
+const getPreferredActiveDate = (dateKeys: string[]) => {
+  if (dateKeys.length === 0) {
+    return null
+  }
+
+  if (dateKeys.includes(todayKey)) {
+    return todayKey
+  }
+
+  const nextUpcoming = dateKeys.find((dateKey) => dateKey >= todayKey)
+  if (nextUpcoming) {
+    return nextUpcoming
+  }
+
+  return dateKeys[dateKeys.length - 1]
+}
 
 const TIME_RANGE_PRESETS = [
   { value: "08:00-12:00", label: "Manhã · 08:00-12:00" },
@@ -120,11 +141,15 @@ interface DashboardProps {
 interface InstructorScheduleBoardProps {
   lessons: Lesson[]
   onConfirm: (lessonId: string) => Promise<void>
+  onConfirmAll: (lessonIds: string[]) => Promise<void>
   onValidateCode: (lessonId: string, code: string) => Promise<void>
   onCancel: (lessonId: string) => Promise<void>
+  onCancelAll: (lessonIds: string[]) => Promise<void>
   confirmingId: string | null
+  confirmingAll: boolean
   validatingId: string | null
   cancelingId: string | null
+  cancelingAll: boolean
   requestError: string | null
   validationErrors: Record<string, string | null>
 }
@@ -132,15 +157,19 @@ interface InstructorScheduleBoardProps {
 function InstructorScheduleBoard({
   lessons,
   onConfirm,
+  onConfirmAll,
   onValidateCode,
   onCancel,
+  onCancelAll,
   confirmingId,
+  confirmingAll,
   validatingId,
   cancelingId,
+  cancelingAll,
   requestError,
   validationErrors
 }: InstructorScheduleBoardProps) {
-  const [selectionFilter, setSelectionFilter] = useState<"" | "all" | "availability" | "lessons">("")
+  const [selectionFilter, setSelectionFilter] = useState<"all" | "availability" | "lessons">("lessons")
   const [availability, setAvailability] = useState<Availability[]>([])
   const [displayMonth, setDisplayMonth] = useState(defaultMonth)
   const [selectedDates, setSelectedDates] = useState<string[]>([])
@@ -330,15 +359,40 @@ function InstructorScheduleBoard({
     return markerMap
   }, [availability, lessons, visibleRange.end, visibleRange.start])
 
-  const selectedLessons = useMemo(
-    () =>
-      lessons
-        .filter((lesson) => activeDate !== null && getLessonDateKey(lesson) === activeDate)
-        .sort(
-          (a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime()
-        ),
-    [activeDate, lessons]
-  )
+  const selectedLessonsByDate = useMemo(() => {
+    const selectedDateSet = new Set(selectedDates)
+    const grouped = new Map<string, Lesson[]>()
+
+    lessons
+      .filter((lesson) => isActiveLesson(lesson))
+      .filter((lesson) =>
+        selectedDateSet.size > 0
+          ? selectedDateSet.has(getLessonDateKey(lesson))
+          : activeDate !== null && getLessonDateKey(lesson) === activeDate
+      )
+      .sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime())
+      .forEach((lesson) => {
+        const dateKey = getLessonDateKey(lesson)
+        const current = grouped.get(dateKey) || []
+        current.push(lesson)
+        grouped.set(dateKey, current)
+      })
+
+    const orderedDateKeys = Array.from(grouped.keys()).sort((left, right) => {
+      if (activeDate && left === activeDate) {
+        return -1
+      }
+      if (activeDate && right === activeDate) {
+        return 1
+      }
+      return left.localeCompare(right)
+    })
+
+    return orderedDateKeys.map((dateKey) => ({
+      dateKey,
+      lessons: grouped.get(dateKey) || []
+    }))
+  }, [activeDate, lessons, selectedDates])
 
   const selectedAvailability = useMemo(
     () => {
@@ -406,6 +460,25 @@ function InstructorScheduleBoard({
   }, [selectedAvailability, selectedDates])
 
   const hasSelection = selectedDates.length > 0
+  const activeLessons = useMemo(
+    () => lessons.filter((lesson) => isActiveLesson(lesson)),
+    [lessons]
+  )
+  const pendingSelectedLessons = useMemo(
+    () =>
+      selectedLessonsByDate.flatMap(({ lessons: groupedLessons }) =>
+        groupedLessons.filter((lesson) => lesson.status === "pending_instructor")
+      ),
+    [selectedLessonsByDate]
+  )
+  const cancelableSelectedLessons = useMemo(
+    () =>
+      selectedLessonsByDate.flatMap(({ lessons: groupedLessons }) =>
+        groupedLessons.filter((lesson) => ["pending_instructor", "confirmed"].includes(lesson.status))
+      ),
+    [selectedLessonsByDate]
+  )
+
   const selectableDaysByFilter = useMemo(() => {
     const availabilityDates = new Set<string>()
 
@@ -415,7 +488,7 @@ function InstructorScheduleBoard({
       }
     })
 
-    const lessonDates = new Set(lessons.map((lesson) => getLessonDateKey(lesson)))
+    const lessonDates = new Set(activeLessons.map((lesson) => getLessonDateKey(lesson)))
 
     const allDates = Array.from(new Set([...availabilityDates, ...lessonDates])).sort()
 
@@ -424,13 +497,39 @@ function InstructorScheduleBoard({
       availability: Array.from(availabilityDates).sort(),
       lessons: Array.from(lessonDates).sort()
     }
-  }, [lessons, markersByDate])
+  }, [activeLessons, markersByDate])
+
+  useEffect(() => {
+    if (selectedDates.length > 0) {
+      return
+    }
+
+    const nextSelection = selectableDaysByFilter[selectionFilter]
+    if (nextSelection.length === 0) {
+      return
+    }
+
+    const nextActiveDate = getPreferredActiveDate(nextSelection)
+    setSelectedDates(nextSelection)
+    setActiveDate(nextActiveDate)
+
+    if (nextActiveDate) {
+      const date = parseDateKey(nextActiveDate)
+      setDisplayMonth(new Date(date.getFullYear(), date.getMonth(), 1))
+    }
+  }, [selectableDaysByFilter, selectedDates.length, selectionFilter])
 
   const handleSelectionFilterChange = (value: "all" | "availability" | "lessons") => {
     setSelectionFilter(value)
     const nextSelection = selectableDaysByFilter[value]
     setSelectedDates(nextSelection)
-    setActiveDate(nextSelection[0] || null)
+    setActiveDate(getPreferredActiveDate(nextSelection))
+
+    const nextActiveDate = getPreferredActiveDate(nextSelection)
+    if (nextActiveDate) {
+      const date = parseDateKey(nextActiveDate)
+      setDisplayMonth(new Date(date.getFullYear(), date.getMonth(), 1))
+    }
   }
 
   const handleClearSelection = () => {
@@ -534,9 +633,6 @@ function InstructorScheduleBoard({
                   )
                 }
               >
-                <option value="" disabled>
-                  Selecionar por filtro
-                </option>
                 <option value="all">Com eventos</option>
                 <option value="availability">Disponibilidades</option>
                 <option value="lessons">Solicitações e aulas</option>
@@ -632,87 +728,125 @@ function InstructorScheduleBoard({
           </div>
 
           <div className="schedule-section">
-            <strong>Solicitações e aulas do dia ativo</strong>
+            <div className="schedule-section-head">
+              <strong>Solicitações e aulas da seleção</strong>
+              <div className="schedule-bulk-actions">
+                {pendingSelectedLessons.length > 1 && (
+                  <button
+                    className="action-btn"
+                    type="button"
+                    onClick={() => void onConfirmAll(pendingSelectedLessons.map((lesson) => lesson.id))}
+                    disabled={confirmingAll || cancelingAll}
+                  >
+                    {confirmingAll ? "Confirmando..." : `Confirmar todas (${pendingSelectedLessons.length})`}
+                  </button>
+                )}
+                {cancelableSelectedLessons.length > 1 && (
+                  <button
+                    className="cancel-btn"
+                    type="button"
+                    onClick={() => void onCancelAll(cancelableSelectedLessons.map((lesson) => lesson.id))}
+                    disabled={cancelingAll || confirmingAll}
+                  >
+                    {cancelingAll ? "Cancelando..." : `Cancelar todas (${cancelableSelectedLessons.length})`}
+                  </button>
+                )}
+              </div>
+            </div>
 
-            {activeDate === null ? (
+            {activeDate === null && selectedDates.length === 0 ? (
               <p className="schedule-helper">Selecione um dia para ver solicitações e aulas.</p>
-            ) : selectedLessons.length === 0 ? (
-              <p className="schedule-helper">Nenhuma aula agendada nesta data.</p>
+            ) : selectedLessonsByDate.length === 0 ? (
+              <p className="schedule-helper">Nenhuma solicitação ou aula ativa nas datas selecionadas.</p>
             ) : (
               <div className="schedule-entry-list">
-                {selectedLessons.map((lesson) => (
-                  <div key={lesson.id} className={`schedule-entry ${lesson.status}`}>
-                    <div className="schedule-lesson-meta">
+                {selectedLessonsByDate.map(({ dateKey, lessons: groupedLessons }) => (
+                  <div key={dateKey} className="schedule-day-group">
+                    <div className="schedule-day-group-header">
                       <strong>
-                        {new Date(lesson.scheduled_start).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit"
-                        })}{" "}
-                        • {formatLessonDuration(lesson)}
+                        {formatLongDate(dateKey)}
+                        {dateKey === activeDate ? " · Dia ativo" : ""}
                       </strong>
-                      <span>{lessonStatusLabel[lesson.status] || lesson.status}</span>
-                      <span>Aluno: {lesson.student_email || "Não informado"}</span>
+                      <span>{groupedLessons.length} item(ns)</span>
                     </div>
 
-                    {lesson.status === "pending_instructor" && (
-                      <div className="booking-actions">
-                        <button
-                          className="action-btn"
-                          type="button"
-                          onClick={() => void onConfirm(lesson.id)}
-                          disabled={confirmingId === lesson.id}
-                        >
-                          {confirmingId === lesson.id ? "Confirmando..." : "Confirmar"}
-                        </button>
-                        <button
-                          className="cancel-btn"
-                          type="button"
-                          onClick={() => void onCancel(lesson.id)}
-                          disabled={cancelingId === lesson.id}
-                        >
-                          {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
-                        </button>
-                      </div>
-                    )}
+                    <div className="schedule-entry-list">
+                      {groupedLessons.map((lesson) => (
+                        <div key={lesson.id} className={`schedule-entry ${lesson.status}`}>
+                          <div className="schedule-lesson-meta">
+                            <strong>
+                              {new Date(lesson.scheduled_start).toLocaleTimeString("pt-BR", {
+                                hour: "2-digit",
+                                minute: "2-digit"
+                              })}{" "}
+                              • {formatLessonDuration(lesson)}
+                            </strong>
+                            <span>{lessonStatusLabel[lesson.status] || lesson.status}</span>
+                            <span>Aluno: {lesson.student_email || "Não informado"}</span>
+                          </div>
 
-                    {lesson.status === "confirmed" && (
-                      <>
-                        <div className="schedule-confirm-row">
-                          <input
-                            type="text"
-                            placeholder="Código do aluno"
-                            value={codeInputs[lesson.id] || ""}
-                            onChange={(event) =>
-                              setCodeInputs((prev) => ({
-                                ...prev,
-                                [lesson.id]: event.target.value
-                              }))
-                            }
-                          />
-                          <button
-                            className="action-btn"
-                            type="button"
-                            onClick={() =>
-                              void onValidateCode(lesson.id, codeInputs[lesson.id] || "")
-                            }
-                            disabled={validatingId === lesson.id}
-                          >
-                            {validatingId === lesson.id ? "Validando..." : "Validar código"}
-                          </button>
-                          <button
-                            className="cancel-btn"
-                            type="button"
-                            onClick={() => void onCancel(lesson.id)}
-                            disabled={cancelingId === lesson.id}
-                          >
-                            {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
-                          </button>
+                          {lesson.status === "pending_instructor" && (
+                            <div className="booking-actions">
+                              <button
+                                className="action-btn"
+                                type="button"
+                                onClick={() => void onConfirm(lesson.id)}
+                                disabled={confirmingId === lesson.id}
+                              >
+                                {confirmingId === lesson.id ? "Confirmando..." : "Confirmar"}
+                              </button>
+                              <button
+                                className="cancel-btn"
+                                type="button"
+                                onClick={() => void onCancel(lesson.id)}
+                                disabled={cancelingId === lesson.id}
+                              >
+                                {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
+                              </button>
+                            </div>
+                          )}
+
+                          {lesson.status === "confirmed" && (
+                            <>
+                              <div className="schedule-confirm-row">
+                                <input
+                                  type="text"
+                                  placeholder="Código do aluno"
+                                  value={codeInputs[lesson.id] || ""}
+                                  onChange={(event) =>
+                                    setCodeInputs((prev) => ({
+                                      ...prev,
+                                      [lesson.id]: event.target.value
+                                    }))
+                                  }
+                                />
+                                <button
+                                  className="action-btn"
+                                  type="button"
+                                  onClick={() =>
+                                    void onValidateCode(lesson.id, codeInputs[lesson.id] || "")
+                                  }
+                                  disabled={validatingId === lesson.id}
+                                >
+                                  {validatingId === lesson.id ? "Validando..." : "Validar código"}
+                                </button>
+                                <button
+                                  className="cancel-btn"
+                                  type="button"
+                                  onClick={() => void onCancel(lesson.id)}
+                                  disabled={cancelingId === lesson.id}
+                                >
+                                  {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
+                                </button>
+                              </div>
+                              {validationErrors[lesson.id] && (
+                                <p className="confirm-error inline-error">{validationErrors[lesson.id]}</p>
+                              )}
+                            </>
+                          )}
                         </div>
-                        {validationErrors[lesson.id] && (
-                          <p className="confirm-error inline-error">{validationErrors[lesson.id]}</p>
-                        )}
-                      </>
-                    )}
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -731,18 +865,22 @@ export function InstructorPortal({ user }: DashboardProps) {
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [confirmingAll, setConfirmingAll] = useState(false)
   const [requestError, setRequestError] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<Record<string, string | null>>({})
   const [validatingId, setValidatingId] = useState<string | null>(null)
   const [cancelingId, setCancelingId] = useState<string | null>(null)
+  const [cancelingAll, setCancelingAll] = useState(false)
   const [historyFilter, setHistoryFilter] = useState<"all" | "completed" | "cancelled">("completed")
 
   useEffect(() => {
-    void fetchData()
+    void fetchData({ showLoading: true })
   }, [])
 
-  const fetchData = async () => {
-    setLoading(true)
+  const fetchData = async ({ showLoading = false }: { showLoading?: boolean } = {}) => {
+    if (showLoading) {
+      setLoading(true)
+    }
     try {
       const [statsData, earningsData, lessonsData] = await Promise.all([
         api.instructors.getStats(),
@@ -762,7 +900,9 @@ export function InstructorPortal({ user }: DashboardProps) {
     } catch (error) {
       console.error("Falha ao carregar dados do instrutor:", error)
     } finally {
-      setLoading(false)
+      if (showLoading) {
+        setLoading(false)
+      }
     }
   }
 
@@ -776,6 +916,46 @@ export function InstructorPortal({ user }: DashboardProps) {
       setRequestError(err instanceof Error ? err.message : "Falha ao confirmar agendamento")
     } finally {
       setConfirmingId(null)
+    }
+  }
+
+  const handleConfirmAll = async (lessonIds: string[]) => {
+    if (lessonIds.length === 0) {
+      return
+    }
+
+    const confirmMessage =
+      lessonIds.length === 1
+        ? "Confirmar esta solicitação de aula?"
+        : `Confirmar ${lessonIds.length} solicitações de aula?`
+
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
+    setConfirmingAll(true)
+    setRequestError(null)
+    try {
+      const results = await Promise.allSettled(
+        lessonIds.map(async (lessonId) => {
+          await api.lessons.confirmBooking(lessonId)
+        })
+      )
+
+      const failedCount = results.filter((result) => result.status === "rejected").length
+      await fetchData()
+
+      if (failedCount > 0) {
+        setRequestError(
+          failedCount === lessonIds.length
+            ? "Não foi possível confirmar as solicitações selecionadas."
+            : `${failedCount} solicitação(ões) não puderam ser confirmadas.`
+        )
+      }
+    } catch (err) {
+      setRequestError(err instanceof Error ? err.message : "Falha ao confirmar solicitações")
+    } finally {
+      setConfirmingAll(false)
     }
   }
 
@@ -828,6 +1008,46 @@ export function InstructorPortal({ user }: DashboardProps) {
     }
   }
 
+  const handleCancelAll = async (lessonIds: string[]) => {
+    if (lessonIds.length === 0) {
+      return
+    }
+
+    const confirmMessage =
+      lessonIds.length === 1
+        ? "Cancelar esta solicitação ou aula?"
+        : `Cancelar ${lessonIds.length} solicitações/aulas?`
+
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
+    setCancelingAll(true)
+    setRequestError(null)
+    try {
+      const results = await Promise.allSettled(
+        lessonIds.map(async (lessonId) => {
+          await api.lessons.cancelLesson(lessonId)
+        })
+      )
+
+      const failedCount = results.filter((result) => result.status === "rejected").length
+      await fetchData()
+
+      if (failedCount > 0) {
+        setRequestError(
+          failedCount === lessonIds.length
+            ? "Não foi possível cancelar as solicitações/aulas selecionadas."
+            : `${failedCount} solicitação(ões)/aula(s) não puderam ser canceladas.`
+        )
+      }
+    } catch (err) {
+      setRequestError(err instanceof Error ? err.message : "Falha ao cancelar solicitações/aulas")
+    } finally {
+      setCancelingAll(false)
+    }
+  }
+
   const historicalLessons = useMemo(() => {
     const items = lessons.filter((lesson) =>
       historyFilter === "all"
@@ -854,11 +1074,15 @@ export function InstructorPortal({ user }: DashboardProps) {
         <InstructorScheduleBoard
           lessons={lessons}
           onConfirm={handleConfirm}
+          onConfirmAll={handleConfirmAll}
           onValidateCode={handleValidateCode}
           onCancel={handleCancel}
+          onCancelAll={handleCancelAll}
           confirmingId={confirmingId}
+          confirmingAll={confirmingAll}
           validatingId={validatingId}
           cancelingId={cancelingId}
+          cancelingAll={cancelingAll}
           requestError={requestError}
           validationErrors={validationErrors}
         />
