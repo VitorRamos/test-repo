@@ -191,6 +191,7 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
 
       {message && <div className="booking-success">{message}</div>}
 
+      {error && <div className="booking-error">{error}</div>}
       {showForm && (
         <form className="booking-form" onSubmit={handleSubmit}>
           <div className="form-group">
@@ -296,7 +297,6 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
                 ? `Confirmar ${selectedSlots.length} agendamento${selectedSlots.length > 1 ? "s" : ""}`
                 : "Confirmar agendamentos"}
           </button>
-          {error && <div className="booking-error booking-error-inline">{error}</div>}
         </form>
       )}
 
