@@ -5,8 +5,8 @@
   padding: 1.5rem;
   margin-bottom: 1rem;
   transition: box-shadow 0.3s, transform 0.3s;
-  min-width: 500px;
-  max-width: 500px;
+  width: 100%;
+  max-width: 600px;
 }
 
 .instructor-card:hover {

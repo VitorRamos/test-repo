@@ -1,6 +1,12 @@
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}
+
 body {
   margin: 0;
   padding: 0;
+  scrollbar-gutter: stable;
 }
 
 #root {
