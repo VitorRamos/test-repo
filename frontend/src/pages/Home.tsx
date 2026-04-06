@@ -17,7 +17,7 @@ export function Home() {
     city: "",
     price_max: "",
     rating_min: "",
-    availability_only: false
+    availability_only: true
   })
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export function Home() {
       city: "",
       price_max: "",
       rating_min: "",
-      availability_only: false
+      availability_only: true
     })
   }
 
