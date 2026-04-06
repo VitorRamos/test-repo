@@ -1,11 +1,23 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { ScheduleCalendar } from "./ScheduleCalendar"
 import type { AvailableDay, Instructor, Lesson, Review } from "../types"
 import { api } from "../services/api"
 import { useAuth } from "../context/AuthContext"
+import {
+  endOfMonth,
+  endOfWeek,
+  formatDateKey,
+  formatLongDate,
+  parseDateKey,
+  startOfMonth,
+  startOfWeek,
+  type CalendarMarker
+} from "../utils/calendar"
 import "./InstructorCard.css"
 
 const today = new Date()
+const todayKey = formatDateKey(today)
 const formatDateInput = (value: Date) => value.toISOString().split("T")[0]
 
 interface InstructorCardProps {
@@ -25,13 +37,14 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
   const [showReviews, setShowReviews] = useState(false)
   const [loadingReviews, setLoadingReviews] = useState(false)
   const [availableDays, setAvailableDays] = useState<AvailableDay[]>([])
-  const [selectedDate, setSelectedDate] = useState("")
+  const [selectedDates, setSelectedDates] = useState<string[]>([])
+  const [activeDate, setActiveDate] = useState(todayKey)
   const [selectedSlots, setSelectedSlots] = useState<string[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
-  const [dateRange, setDateRange] = useState({
-    date_from: formatDateInput(today),
-    date_to: formatDateInput(new Date(today.getTime() + 1000 * 60 * 60 * 24 * 21))
-  })
+  const [displayMonth, setDisplayMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
+
+  const sortDateKeys = (values: string[]) =>
+    [...values].sort((left, right) => parseDateKey(left).getTime() - parseDateKey(right).getTime())
 
   const handleOpenForm = () => {
     setMessage(null)
@@ -84,19 +97,19 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
   const loadSlots = async () => {
     setLoadingSlots(true)
     try {
+      const monthStart = startOfWeek(startOfMonth(displayMonth))
+      const monthEnd = endOfWeek(endOfMonth(displayMonth))
       const days = await api.instructors.getAvailableSlots(instructor.id, {
         duration_hours: durationHours,
-        date_from: dateRange.date_from,
-        date_to: dateRange.date_to
+        date_from: formatDateInput(monthStart),
+        date_to: formatDateInput(monthEnd)
       })
       setAvailableDays(days)
       const validSlots = new Set(days.flatMap((day: AvailableDay) => day.slots))
       setSelectedSlots((prev) => prev.filter((slot) => validSlots.has(slot)))
-      if (days.length > 0) {
-        setSelectedDate(days[0].date)
-      } else {
-        setSelectedDate("")
-      }
+      const availableDateKeys = new Set(days.map((day: AvailableDay) => day.date))
+      setSelectedDates((prev) => sortDateKeys(prev.filter((dateKey) => availableDateKeys.has(dateKey))))
+      setActiveDate((prev) => prev || formatDateKey(monthStart))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao carregar horários.")
     } finally {
@@ -107,10 +120,41 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
   useEffect(() => {
     if (!showForm) return
     void loadSlots()
-  }, [durationHours, showForm, dateRange.date_from, dateRange.date_to])
+  }, [displayMonth, durationHours, showForm])
 
-  const slotsForSelectedDate =
-    availableDays.find((day) => day.date === selectedDate)?.slots ?? []
+  const availableDates = useMemo(() => new Set(availableDays.map((day) => day.date)), [availableDays])
+  const selectedAvailableDays = useMemo(
+    () => sortDateKeys(selectedDates).map((dateKey) => availableDays.find((day) => day.date === dateKey)).filter(Boolean) as AvailableDay[],
+    [availableDays, selectedDates]
+  )
+  const groupedDays = useMemo(() => {
+    const groups: { timeKey: string; days: AvailableDay[]; timeStrs: string[] }[] = []
+    for (const day of selectedAvailableDays) {
+      const timeStrs = day.slots
+        .map((s) => new Date(s).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }))
+        .sort()
+      const timeKey = timeStrs.join(",")
+      const existing = groups.find((g) => g.timeKey === timeKey)
+      if (existing) {
+        existing.days.push(day)
+      } else {
+        groups.push({ timeKey, days: [day], timeStrs })
+      }
+    }
+    return groups
+  }, [selectedAvailableDays])
+  const activeDaySlots = availableDays.find((day) => day.date === activeDate)?.slots ?? []
+
+  const markersByDate = useMemo<Record<string, CalendarMarker[]>>(
+    () =>
+      Object.fromEntries(
+        availableDays.map((day: AvailableDay) => [
+          day.date,
+          [{ tone: "availability", label: "Horários", count: day.slots.length }]
+        ])
+      ),
+    [availableDays]
+  )
 
   const toggleSlotSelection = (slot: string) => {
     setSelectedSlots((prev) =>
@@ -118,6 +162,20 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
         ? prev.filter((item) => item !== slot)
         : [...prev, slot].sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
     )
+  }
+
+  const toggleSlotsSelection = (slotsToToggle: string[]) => {
+    if (slotsToToggle.length === 0) return
+    setSelectedSlots((prev) => {
+      const allSelected = slotsToToggle.every((s) => prev.includes(s))
+      if (allSelected) {
+        return prev.filter((s) => !slotsToToggle.includes(s))
+      } else {
+        const next = new Set(prev)
+        slotsToToggle.forEach((s) => next.add(s))
+        return Array.from(next).sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+      }
+    })
   }
 
   const toggleReviews = async () => {
@@ -148,6 +206,49 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
     }
     const nextShow = !showForm
     setShowForm(nextShow)
+  }
+
+  const handleSelectDate = (dateKey: string) => {
+    const date = parseDateKey(dateKey)
+    setDisplayMonth(new Date(date.getFullYear(), date.getMonth(), 1))
+    setActiveDate(dateKey)
+
+    if (!availableDates.has(dateKey)) {
+      return
+    }
+
+    setSelectedDates((prev) =>
+      prev.includes(dateKey)
+        ? prev.filter((item) => item !== dateKey)
+        : sortDateKeys([...prev, dateKey])
+    )
+  }
+
+  const handleRangeSelect = (startDate: string, endDate: string, mode: "add" | "remove") => {
+    const start = parseDateKey(startDate)
+    const end = parseDateKey(endDate)
+    const [rangeStart, rangeEnd] =
+      start.getTime() <= end.getTime() ? [start, end] : [end, start]
+
+    const rangeDates: string[] = []
+    for (let cursor = new Date(rangeStart); cursor <= rangeEnd; cursor.setDate(cursor.getDate() + 1)) {
+      const dateKey = formatDateKey(cursor)
+      if (availableDates.has(dateKey)) {
+        rangeDates.push(dateKey)
+      }
+    }
+
+    if (rangeDates.length === 0) {
+      return
+    }
+
+    setSelectedDates((prev) => {
+      if (mode === "add") {
+        return sortDateKeys(Array.from(new Set([...prev, ...rangeDates])))
+      }
+      return prev.filter((dateKey) => !rangeDates.includes(dateKey))
+    })
+    setActiveDate(rangeDates[rangeDates.length - 1])
   }
 
   return (
@@ -189,85 +290,124 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
         </div>
       </div>
 
-      {message && <div className="booking-success">{message}</div>}
-
-      {error && <div className="booking-error">{error}</div>}
       {showForm && (
         <form className="booking-form" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor={`date-from-${instructor.id}`}>Buscar entre datas</label>
-            <div className="booking-range-inputs">
-              <input
-                id={`date-from-${instructor.id}`}
-                type="date"
-                value={dateRange.date_from}
-                onChange={(e) => setDateRange((prev) => ({ ...prev, date_from: e.target.value }))}
-              />
-              <input
-                type="date"
-                value={dateRange.date_to}
-                onChange={(e) => setDateRange((prev) => ({ ...prev, date_to: e.target.value }))}
-              />
-            </div>
-          </div>
-          <div className="form-group">
-            <label htmlFor={`duration-${instructor.id}`}>Duração (horas)</label>
-            <input
-              id={`duration-${instructor.id}`}
-              type="number"
-              min={1}
-              max={8}
-              step={1}
-              value={durationHours}
-              onChange={(e) => setDurationHours(Number(e.target.value))}
-              required
+            <ScheduleCalendar
+              month={displayMonth}
+              selectedDates={selectedDates}
+              activeDate={activeDate}
+              markersByDate={markersByDate}
+              onMonthChange={setDisplayMonth}
+              onSelectDate={handleSelectDate}
+              onRangeSelect={handleRangeSelect}
+              title="1. Selecione um ou mais dias"
+              subtitle="Clique para adicionar ou remover dias com horários livres. Você pode arrastar para selecionar vários."
+              toolbar={
+                <label className="booking-duration-toolbar" htmlFor={`duration-${instructor.id}`}>
+                  <span>Duração</span>
+                  <select
+                    id={`duration-${instructor.id}`}
+                    value={durationHours}
+                    onChange={(e) => setDurationHours(Number(e.target.value))}
+                  >
+                    {[1, 2, 3, 4].map((value) => (
+                      <option key={value} value={value}>
+                        {value} hora{value > 1 ? "s" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              }
+              contextualPanel={
+                <div className="booking-calendar-summary">
+                  <strong>
+                    {selectedDates.length > 0
+                      ? `${selectedDates.length} dia(s) selecionado(s)`
+                      : `Dia em foco: ${formatLongDate(activeDate)}`}
+                  </strong>
+                  <span>
+                    {selectedDates.length > 0
+                      ? "Agora escolha os horários desejados em cada dia abaixo."
+                      : availableDates.has(activeDate)
+                        ? `${activeDaySlots.length} horário(s) disponível(is) neste dia. Clique para selecionar.`
+                        : "Este dia não possui horários disponíveis para a duração escolhida."}
+                  </span>
+                </div>
+              }
             />
           </div>
           <div className="form-group">
-            <label>Escolha um dia</label>
+            <label>2. Escolha os horários dentro dos dias selecionados</label>
             {loadingSlots ? (
               <p className="booking-helper-text">Carregando calendário...</p>
             ) : availableDays.length === 0 ? (
-              <p className="booking-helper-text">Nenhuma disponibilidade encontrada nesse período.</p>
+              <p className="booking-helper-text">Nenhuma disponibilidade encontrada neste mês.</p>
+            ) : selectedAvailableDays.length === 0 ? (
+              <p className="booking-helper-text">
+                {availableDates.has(activeDate)
+                  ? "Clique novamente no dia em foco para selecioná-lo, ou escolha vários dias com horários livres."
+                  : "Este dia não possui horários disponíveis. Escolha um dia marcado no calendário para ver os horários."}
+              </p>
             ) : (
-              <div className="booking-day-grid">
-                {availableDays.map((day) => (
-                  <button
-                    key={day.date}
-                    type="button"
-                    className={selectedDate === day.date ? "booking-day active" : "booking-day"}
-                    onClick={() => {
-                      setSelectedDate(day.date)
-                    }}
+              <div className="booking-slot-sections">
+                {groupedDays.map((group, index) => (
+                  <section
+                    key={`${index}-${group.timeKey}`}
+                    className={`booking-slot-section${group.days.some((d) => d.date === activeDate) ? " active" : ""}`}
                   >
-                    <strong>{new Date(`${day.date}T00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</strong>
-                    <span>{day.slots.length} horarios</span>
-                  </button>
+                    <div className="booking-slot-section-header" style={{ alignItems: "flex-start" }}>
+                      <div className="selected-slot-list" style={{ flex: 1 }}>
+                        {group.days.map((d) => {
+                          const [, month, day] = d.date.split("-")
+                          return (
+                            <span key={d.date} className="selected-slot-chip" style={{ cursor: "default" }}>
+                              {day}/{month}
+                            </span>
+                          )
+                        })}
+                      </div>
+                      <span style={{ whiteSpace: "nowrap", paddingTop: "0.45rem" }}>
+                        {group.timeStrs.length} horário(s)
+                      </span>
+                    </div>
+                    <div className="booking-slot-grid">
+                      {group.timeStrs.map((timeStr) => {
+                        const slotsForThisTime = group.days
+                          .map((d) =>
+                            d.slots.find(
+                              (s) =>
+                                new Date(s).toLocaleTimeString("pt-BR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                }) === timeStr
+                            )
+                          )
+                          .filter(Boolean) as string[]
+
+                        const allSelected = slotsForThisTime.length > 0 && slotsForThisTime.every((s) => selectedSlots.includes(s))
+                        const someSelected = slotsForThisTime.some((s) => selectedSlots.includes(s))
+
+                        return (
+                          <button
+                            key={timeStr}
+                            type="button"
+                            className={`booking-slot ${allSelected ? "active" : someSelected ? "partial" : ""}`}
+                            onClick={() => toggleSlotsSelection(slotsForThisTime)}
+                            title={someSelected && !allSelected ? "Alguns dias estão selecionados. Clique para selecionar todos." : undefined}
+                          >
+                            {timeStr}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </section>
                 ))}
               </div>
             )}
           </div>
           <div className="form-group">
-            <label>Escolha um horário</label>
-            {slotsForSelectedDate.length === 0 ? (
-              <p className="booking-helper-text">Selecione um dia para ver os horários.</p>
-            ) : (
-              <div className="booking-slot-grid">
-                {slotsForSelectedDate.map((slot) => (
-                  <button
-                    key={slot}
-                    type="button"
-                    className={selectedSlots.includes(slot) ? "booking-slot active" : "booking-slot"}
-                    onClick={() => toggleSlotSelection(slot)}
-                  >
-                    {new Date(slot).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="form-group">
-            <label>Horários selecionados</label>
+            <label>3. Revise os horários selecionados</label>
             {selectedSlots.length === 0 ? (
               <p className="booking-helper-text">Nenhum horário selecionado.</p>
             ) : (
@@ -299,6 +439,9 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
           </button>
         </form>
       )}
+
+      {message && <div className="booking-success">{message}</div>}
+      {error && <div className="booking-error">{error}</div>}
 
       {showReviews && (
         <div className="reviews-panel">

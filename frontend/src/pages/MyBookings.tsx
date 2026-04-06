@@ -47,7 +47,7 @@ export function MyBookings({ user }: MyBookingsProps) {
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
   const [ratingSubmitting, setRatingSubmitting] = useState<string | null>(null)
   const [publicInputs, setPublicInputs] = useState<Record<string, boolean>>({})
-  const [filter, setFilter] = useState<"all" | "active" | "completed" | "cancelled">("all")
+  const [filter, setFilter] = useState<"all" | "active" | "completed" | "cancelled" | "pending_instructor">("all")
   const [displayMonth, setDisplayMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [selectedDate, setSelectedDate] = useState(todayKey)
 
@@ -73,7 +73,13 @@ export function MyBookings({ user }: MyBookingsProps) {
     if (filter === "completed") {
       return sortedBookings.filter((lesson) => lesson.status === "completed")
     }
-    return sortedBookings.filter((lesson) => lesson.status === "cancelled")
+    if (filter === "cancelled") {
+      return sortedBookings.filter((lesson) => lesson.status === "cancelled")
+    }
+    if (filter === "pending_instructor") {
+      return sortedBookings.filter((lesson) => lesson.status === "pending_instructor")
+    }
+    return sortedBookings
   }, [filter, sortedBookings])
 
   useEffect(() => {
@@ -209,6 +215,11 @@ export function MyBookings({ user }: MyBookingsProps) {
     setDisplayMonth(new Date(date.getFullYear(), date.getMonth(), 1))
   }
 
+  const handleGoToday = () => {
+    setSelectedDate(todayKey)
+    setDisplayMonth(new Date(today.getFullYear(), today.getMonth(), 1))
+  }
+
   if (!user || user.role !== "student") {
     return <div className="bookings-container"><p>Acesso negado</p></div>
   }
@@ -231,14 +242,18 @@ export function MyBookings({ user }: MyBookingsProps) {
                   id="booking-filter"
                   value={filter}
                   onChange={(e) =>
-                    setFilter(e.target.value as "all" | "active" | "completed" | "cancelled")
+                    setFilter(e.target.value as "all" | "active" | "completed" | "cancelled" | "pending_instructor")
                   }
                 >
                   <option value="all">Todos</option>
                   <option value="active">Ativos</option>
+                  <option value="pending_instructor">Aguardando confirmação do instrutor</option>
                   <option value="completed">Concluídos</option>
                   <option value="cancelled">Cancelados</option>
                 </select>
+                <button className="calendar-ghost-btn" onClick={handleGoToday}>
+                  Hoje
+                </button>
               </div>
 
               <div className="bookings-calendar-card">

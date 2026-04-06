@@ -195,32 +195,61 @@ def logout(driver):
 
 
 def book_instructor_by_name(driver, instructor_name, start_override=None, duration_override=None):
-    target, duration_input = open_booking_form_by_name(driver, instructor_name)
+    target, duration_select = open_booking_form_by_name(driver, instructor_name)
 
-    duration_input.clear()
-    duration_input.send_keys(duration_override or "2")
+    # Set duration
+    Select(duration_select).select_by_value(duration_override or "2")
     time.sleep(DELAY_MEDIUM)
 
-    day_buttons = target.find_elements(By.CSS_SELECTOR, ".booking-day-grid .booking-day")
-    assert day_buttons
-    day_buttons[0].click()
-    time.sleep(DELAY_SHORT)
-
+    # Find the booking form's calendar and select the first available day
+    calendar_in_form = target.find_element(By.CSS_SELECTOR, ".booking-form .schedule-calendar")
+    
+    # Get the first available day from the calendar (not muted)
+    day_buttons = calendar_in_form.find_elements(By.CSS_SELECTOR, ".schedule-day")
+    for day_button in day_buttons:
+        class_attr = day_button.get_attribute("class")
+        if "muted" not in class_attr:
+            markers = day_button.find_elements(By.CSS_SELECTOR, ".schedule-marker")
+            if markers:  # Has availability markers
+                day_button.click()
+                time.sleep(DELAY_MEDIUM)
+                break
+    
+    # Wait for slot sections to appear and select the first available slot
+    def slots_loaded():
+        slot_sections = target.find_elements(By.CSS_SELECTOR, ".booking-slot-sections .booking-slot-section")
+        return len(slot_sections) > 0
+    
+    if not wait_until(slots_loaded, timeout=5):
+        return False
+    
+    slot_sections = target.find_elements(By.CSS_SELECTOR, ".booking-slot-sections .booking-slot-section")
+    if not slot_sections:
+        return False
+    
+    # Select slots from the first section
+    first_section = slot_sections[0]
+    slot_buttons = first_section.find_elements(By.CSS_SELECTOR, ".booking-slot")
+    
     if start_override:
-        slot_buttons = target.find_elements(By.CSS_SELECTOR, ".booking-slot-grid .booking-slot")
+        # Look for specific start time
         for button in slot_buttons:
             if start_override in button.text:
                 button.click()
+                time.sleep(DELAY_SHORT)
                 break
         else:
             return False
     else:
-        slot_buttons = target.find_elements(By.CSS_SELECTOR, ".booking-slot-grid .booking-slot")
+        # Select first available slot
         if not slot_buttons:
             return False
         slot_buttons[0].click()
-
-    target.find_element(By.CSS_SELECTOR, "form.booking-form button[type='submit']").click()
+        time.sleep(DELAY_SHORT)
+    
+    # Submit the form
+    submit_button = target.find_element(By.CSS_SELECTOR, "form.booking-form button[type='submit']")
+    submit_button.click()
     time.sleep(DELAY_SHORT)
     return True
 
@@ -242,18 +271,17 @@ def open_booking_form_by_name(driver, instructor_name):
     driver.execute_script("arguments[0].click();", book_button)
     time.sleep(DELAY_SHORT)
 
-    duration_input = None
+    duration_select = None
     for _ in range(6):
-        day_buttons = target.find_elements(By.CSS_SELECTOR, ".booking-day-grid .booking-day")
-        number_inputs = target.find_elements(By.CSS_SELECTOR, "input[type='number']")
-        if day_buttons and number_inputs:
-            duration_input = number_inputs[0]
+        duration_selects = target.find_elements(By.CSS_SELECTOR, ".booking-duration-toolbar select")
+        if duration_selects:
+            duration_select = duration_selects[0]
             break
         driver.execute_script("arguments[0].click();", book_button)
         time.sleep(DELAY_SHORT)
 
-    assert duration_input is not None
-    return target, duration_input
+    assert duration_select is not None
+    return target, duration_select
 
 
 def confirm_first_booking(driver):
@@ -737,35 +765,28 @@ def test_instructor_availability_blocks_booking():
 
         # Student requests a 2-hour lesson, but the instructor only has a 1-hour window.
         ensure_student_account(driver, cache_key="student_availability_limit")
-        target, duration_input = open_booking_form_by_name(driver, instructor_name)
-        duration_input.clear()
-        duration_input.send_keys("2")
+        target, duration_select = open_booking_form_by_name(driver, instructor_name)
+        Select(duration_select).select_by_value("2")
 
         def no_availability_loaded():
-            day_buttons = target.find_elements(By.CSS_SELECTOR, ".booking-day-grid .booking-day")
-            slot_buttons = target.find_elements(By.CSS_SELECTOR, ".booking-slot-grid .booking-slot")
+            slot_sections = target.find_elements(By.CSS_SELECTOR, ".booking-slot-sections .booking-slot-section")
             helper_text = target.text
             return (
-                len(day_buttons) == 0
-                and len(slot_buttons) == 0
+                len(slot_sections) == 0
                 and (
-                    "Nenhuma disponibilidade encontrada nesse período." in helper_text
-                    or "Nenhum horário selecionado." in helper_text
-                    or "Selecione um dia para ver os horários." in helper_text
+                    "Nenhuma disponibilidade encontrada neste mês." in helper_text
+                    or "Este dia não possui horários disponíveis para a duração escolhida." in helper_text
                 )
             )
 
         assert wait_until(no_availability_loaded, timeout=6)
 
         body = target.text
-        day_buttons = target.find_elements(By.CSS_SELECTOR, ".booking-day-grid .booking-day")
-        slot_buttons = target.find_elements(By.CSS_SELECTOR, ".booking-slot-grid .booking-slot")
-        assert len(day_buttons) == 0
-        assert len(slot_buttons) == 0
+        slot_sections = target.find_elements(By.CSS_SELECTOR, ".booking-slot-sections .booking-slot-section")
+        assert len(slot_sections) == 0
         assert (
-            "Nenhuma disponibilidade encontrada nesse período." in body
-            or "Nenhum horário selecionado." in body
-            or "Selecione um dia para ver os horários." in body
+            "Nenhuma disponibilidade encontrada neste mês." in body
+            or "Este dia não possui horários disponíveis para a duração escolhida." in body
         )
         print("✅ Availability prevents selecting an oversized lesson")
 
