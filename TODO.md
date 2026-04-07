@@ -19,6 +19,7 @@
 - Estabilizar o layout do painel lateral da agenda ao trocar abas e seleção de dias.
 - Corrigir regras de ações em massa na agenda (`Confirmar todas` / `Cancelar todas`) por aba.
 - Melhorar filtros dos instrutores com autocomplete na busca da Home.
+- Manter filtros da Home em tempo real sem causar salto de scroll ao digitar com a lista já rolada.
 
 ## Pendente
 
@@ -40,4 +41,3 @@
 - O booking do aluno ainda pode ficar mais claro na seleção dos horários.
 - Permitir bloqueios/feriados de forma explícita na agenda, sem confundir com publicação de disponibilidade.
 - Foto instrutor
-- Nao scroll ao digitar no filtro quando ja fiz um scroll nos cards
