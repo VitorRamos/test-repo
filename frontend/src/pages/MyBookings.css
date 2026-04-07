@@ -30,11 +30,32 @@
 }
 
 .bookings-toolbar select {
-  padding: 0.6rem 0.75rem;
+  padding: 0.75rem;
+  min-height: 44px;
   border-radius: 6px;
   border: 1px solid var(--border);
   font-family: var(--sans);
+  font-size: 0.95rem;
   background: white;
+}
+
+.bookings-toolbar .calendar-ghost-btn {
+  padding: 0.75rem 1rem;
+  min-height: 44px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: var(--text-h);
+  cursor: pointer;
+  font-weight: 600;
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.bookings-toolbar .calendar-ghost-btn:hover {
+  border-color: var(--accent);
+  background: #f0f9ff;
 }
 
 .bookings-calendar-card {
@@ -119,11 +140,13 @@
   background: #fee2e2;
   color: #991b1b;
   border: 1px solid #fecaca;
-  padding: 0.6rem 1rem;
-  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  min-height: 44px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
   font-family: var(--sans);
+  font-size: 0.95rem;
   transition: all 0.2s ease-in-out;
 }
 
@@ -154,10 +177,12 @@
 
 .rating-form input,
 .rating-form textarea {
-  padding: 0.6rem 0.75rem;
+  padding: 0.75rem;
   border-radius: 6px;
   border: 1px solid var(--border);
   font-family: var(--sans);
+  min-height: 44px;
+  font-size: 1rem;
 }
 
 .rating-done {

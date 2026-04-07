@@ -289,6 +289,7 @@ def confirm_first_booking(driver):
     time.sleep(DELAY_SHORT)
 
     set_agenda_selection_filter_by_value(driver, "lessons")
+    open_agenda_tab(driver, "Solicitações")
     time.sleep(DELAY_SHORT)
     target = find_first_schedule_entry_with_action(driver, "Confirmar")
     confirm_button = target.find_element(By.XPATH, ".//button[contains(., 'Confirmar')]")
@@ -296,11 +297,29 @@ def confirm_first_booking(driver):
     time.sleep(DELAY_SHORT)
 
 
-def find_first_schedule_entry_with_action(driver, action_text):
+def open_agenda_tab(driver, tab_text):
     agenda = driver.find_element(By.ID, "agenda")
+    tabs = agenda.find_elements(By.CSS_SELECTOR, ".schedule-editor-tab")
+    assert tabs, "Agenda tabs not found"
+    for tab in tabs:
+        if tab.text.strip() == tab_text:
+            driver.execute_script("arguments[0].click();", tab)
+            time.sleep(DELAY_SHORT)
+            return
+    raise AssertionError(f"Could not find agenda tab: {tab_text}")
 
+
+def get_active_agenda_panel(driver):
+    agenda = driver.find_element(By.ID, "agenda")
+    panels = agenda.find_elements(By.CSS_SELECTOR, ".schedule-editor-tab-content.active")
+    assert panels, "No active agenda tab panel found"
+    return panels[0]
+
+
+def find_first_schedule_entry_with_action(driver, action_text):
     def search_visible_entries():
-        entries = agenda.find_elements(By.CSS_SELECTOR, ".schedule-entry")
+        panel = get_active_agenda_panel(driver)
+        entries = panel.find_elements(By.CSS_SELECTOR, ".schedule-entry")
         for entry in entries:
             buttons = entry.find_elements(By.TAG_NAME, "button")
             if any(action_text in button.text for button in buttons):
@@ -311,6 +330,7 @@ def find_first_schedule_entry_with_action(driver, action_text):
     if found is not None:
         return found
 
+    agenda = driver.find_element(By.ID, "agenda")
     chips = agenda.find_elements(By.CSS_SELECTOR, ".schedule-selection-chip")
     for chip in chips:
         chip.click()
@@ -323,10 +343,9 @@ def find_first_schedule_entry_with_action(driver, action_text):
 
 
 def find_schedule_entry_in_agenda(driver, text):
-    agenda = driver.find_element(By.ID, "agenda")
-
     def search_visible_entries():
-        entries = agenda.find_elements(By.CSS_SELECTOR, ".schedule-entry")
+        panel = get_active_agenda_panel(driver)
+        entries = panel.find_elements(By.CSS_SELECTOR, ".schedule-entry")
         for entry in entries:
             if text in entry.text:
                 return entry
@@ -336,6 +355,7 @@ def find_schedule_entry_in_agenda(driver, text):
     if found is not None:
         return found
 
+    agenda = driver.find_element(By.ID, "agenda")
     chips = agenda.find_elements(By.CSS_SELECTOR, ".schedule-selection-chip")
     for chip in chips:
         chip.click()
@@ -352,6 +372,7 @@ def confirm_booking_for_student(driver, student_email):
     time.sleep(DELAY_SHORT)
 
     set_agenda_selection_filter_by_value(driver, "lessons")
+    open_agenda_tab(driver, "Solicitações")
     time.sleep(DELAY_SHORT)
     target = find_schedule_entry_in_agenda(driver, student_email)
     confirm_button = target.find_element(By.XPATH, ".//button[contains(., 'Confirmar')]")
@@ -545,8 +566,10 @@ def validate_code_for_first_confirmed(driver, code):
     time.sleep(DELAY_SHORT)
 
     set_agenda_selection_filter_by_value(driver, "lessons")
+    open_agenda_tab(driver, "Confirmadas")
     time.sleep(DELAY_SHORT)
-    validate_button = driver.find_element(By.XPATH, "//div[@id='agenda']//button[contains(., 'Validar')]")
+    panel = get_active_agenda_panel(driver)
+    validate_button = panel.find_element(By.XPATH, ".//button[contains(., 'Validar')]")
     row = validate_button.find_element(By.XPATH, "./ancestor::div[contains(@class, 'schedule-confirm-row')]")
     code_input = row.find_element(By.TAG_NAME, "input")
     code_input.clear()
@@ -822,9 +845,10 @@ def test_instructor_conflict_booking():
         # Instructor confirms the first request
         login(driver, instructor["email"], instructor["password"])
         confirm_booking_for_student(driver, student1["email"])
+        open_agenda_tab(driver, "Solicitações")
         body = get_body(driver)
         assert "Confirmada" in body or "confirmar" in body.lower()
-        assert student2["email"] not in driver.find_element(By.ID, "agenda").text
+        assert student2["email"] not in get_active_agenda_panel(driver).text
         logout(driver)
 
         # The overlapping pending request is automatically cancelled
