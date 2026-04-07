@@ -38,3 +38,4 @@
 - Esses cards de stats podem ir para o card Ganhos em instrutor e nomear esse card de outra coisa que melhor represente
 - Substituir identificadores do aluno por nickname consistente no backend/frontend.
 - Foto instrutor
+- Em agendamentos ao clikar no instructor deve ir para o card dele
