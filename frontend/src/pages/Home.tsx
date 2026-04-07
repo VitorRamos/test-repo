@@ -308,11 +308,6 @@ export function Home() {
                   key={instructor.id}
                   instructor={instructor}
                   hasRequested={requestedInstructorIds.includes(instructor.id)}
-                  onBookingCreated={() =>
-                    setRequestedInstructorIds((prev) =>
-                      prev.includes(instructor.id) ? prev : [...prev, instructor.id]
-                    )
-                  }
                 />
               ))}
             </div>

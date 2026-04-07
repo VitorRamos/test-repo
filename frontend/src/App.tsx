@@ -8,6 +8,7 @@ import { Register } from "./pages/Register"
 import { BecomeInstructor } from "./pages/BecomeInstructor"
 import { InstructorPortal } from "./pages/Dashboard"
 import { MyBookings } from "./pages/MyBookings"
+import { BookingPage } from "./pages/Booking"
 import "./App.css"
 
 function AppContent() {
@@ -41,6 +42,14 @@ function AppContent() {
           element={
             <ProtectedRoute user={user} requiredRole="student">
               <MyBookings user={user} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/instructors/:instructorId/book"
+          element={
+            <ProtectedRoute user={user} requiredRole="student">
+              <BookingPage user={user} />
             </ProtectedRoute>
           }
         />

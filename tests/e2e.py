@@ -202,7 +202,7 @@ def book_instructor_by_name(driver, instructor_name, start_override=None, durati
     time.sleep(DELAY_MEDIUM)
 
     # Find the booking form's calendar and select the first available day
-    calendar_in_form = target.find_element(By.CSS_SELECTOR, ".booking-form .schedule-calendar")
+    calendar_in_form = target.find_element(By.CSS_SELECTOR, ".schedule-calendar")
     
     # Get the first available day from the calendar (not muted)
     day_buttons = calendar_in_form.find_elements(By.CSS_SELECTOR, ".schedule-day")
@@ -248,7 +248,7 @@ def book_instructor_by_name(driver, instructor_name, start_override=None, durati
         time.sleep(DELAY_SHORT)
     
     # Submit the form
-    submit_button = target.find_element(By.CSS_SELECTOR, "form.booking-form button[type='submit']")
+    submit_button = target.find_element(By.CSS_SELECTOR, "form.booking-page-form button[type='submit']")
     submit_button.click()
     time.sleep(DELAY_SHORT)
     return True
@@ -269,19 +269,23 @@ def open_booking_form_by_name(driver, instructor_name):
 
     book_button = target.find_element(By.CSS_SELECTOR, ".instructor-footer .book-btn")
     driver.execute_script("arguments[0].click();", book_button)
-    time.sleep(DELAY_SHORT)
+    time.sleep(DELAY_MEDIUM)
 
+    booking_page = None
     duration_select = None
-    for _ in range(6):
-        duration_selects = target.find_elements(By.CSS_SELECTOR, ".booking-duration-toolbar select")
-        if duration_selects:
-            duration_select = duration_selects[0]
-            break
-        driver.execute_script("arguments[0].click();", book_button)
+    for _ in range(8):
+        pages = driver.find_elements(By.CLASS_NAME, "booking-page")
+        if pages:
+            booking_page = pages[0]
+            duration_selects = booking_page.find_elements(By.CSS_SELECTOR, ".booking-duration-toolbar select")
+            if duration_selects:
+                duration_select = duration_selects[0]
+                break
         time.sleep(DELAY_SHORT)
 
+    assert booking_page is not None
     assert duration_select is not None
-    return target, duration_select
+    return booking_page, duration_select
 
 
 def confirm_first_booking(driver):

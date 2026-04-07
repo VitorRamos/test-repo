@@ -1,0 +1,112 @@
+.booking-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem 3rem;
+}
+
+.booking-page-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.booking-page-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.booking-page-header h1 {
+  margin: 0.35rem 0 0.35rem;
+}
+
+.booking-page-header p {
+  margin: 0;
+  color: var(--text);
+}
+
+.booking-page-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.booking-page-summary {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: end;
+  text-align: right;
+  color: var(--text);
+}
+
+.booking-page-summary strong {
+  color: var(--text-h);
+  font-size: 1.1rem;
+}
+
+.booking-page-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.booking-page-section {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.booking-page-section > label {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.booking-page-slot-header {
+  align-items: flex-start;
+}
+
+.booking-page-chip-list {
+  flex: 1;
+}
+
+.booking-page-static-chip {
+  cursor: default;
+}
+
+.booking-page-slot-count {
+  white-space: nowrap;
+  padding-top: 0.45rem;
+}
+
+.booking-page-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.booking-page-actions .book-btn,
+.booking-page-actions .secondary-btn {
+  flex: 1 1 220px;
+}
+
+@media (max-width: 768px) {
+  .booking-page {
+    padding: 0 1rem 2rem;
+  }
+
+  .booking-page-card {
+    padding: 1rem;
+  }
+
+  .booking-page-header {
+    flex-direction: column;
+  }
+
+  .booking-page-summary {
+    justify-items: start;
+    text-align: left;
+  }
+}

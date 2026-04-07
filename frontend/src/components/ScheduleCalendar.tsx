@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import {
-  endOfMonth,
-  endOfWeek,
+  addDays,
   formatDateKey,
   formatMonthLabel,
   isSameMonth,
@@ -48,9 +47,8 @@ export function ScheduleCalendar({
   } | null>(null)
   const suppressClickRef = useRef(false)
   const monthStart = startOfMonth(month)
-  const monthEnd = endOfMonth(month)
   const gridStart = startOfWeek(monthStart)
-  const gridEnd = endOfWeek(monthEnd)
+  const gridEnd = addDays(gridStart, 41)
   const days: Date[] = []
 
   for (let cursor = new Date(gridStart); cursor <= gridEnd; cursor.setDate(cursor.getDate() + 1)) {
