@@ -22,9 +22,15 @@ const formatDateInput = (value: Date) => value.toISOString().split("T")[0]
 
 interface InstructorCardProps {
   instructor: Instructor
+  hasRequested?: boolean
+  onBookingCreated?: () => void
 }
 
-export function InstructorCard({ instructor }: InstructorCardProps) {
+export function InstructorCard({
+  instructor,
+  hasRequested = false,
+  onBookingCreated
+}: InstructorCardProps) {
   const rating = instructor.rating.toFixed(1)
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -42,6 +48,11 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
   const [selectedSlots, setSelectedSlots] = useState<string[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [displayMonth, setDisplayMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
+  const [hasRequestedBooking, setHasRequestedBooking] = useState(hasRequested)
+
+  useEffect(() => {
+    setHasRequestedBooking(hasRequested)
+  }, [hasRequested])
 
   const sortDateKeys = (values: string[]) =>
     [...values].sort((left, right) => parseDateKey(left).getTime() - parseDateKey(right).getTime())
@@ -84,6 +95,8 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
       setMessage(
         `Agendamentos enviados! ${lessons.length} aula(s) solicitada(s). Total: R$ ${lessons.reduce((sum, lesson) => sum + lesson.total_price, 0).toFixed(2)}`
       )
+      setHasRequestedBooking(true)
+      onBookingCreated?.()
       setShowForm(false)
       setSelectedSlots([])
       setDurationHours(1)
@@ -265,6 +278,10 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
       <div className="instructor-location">
         📍 {instructor.city}, {instructor.state}
       </div>
+
+      {hasRequestedBooking && (
+        <div className="instructor-requested-badge">Ja solicitei aulas com este instrutor</div>
+      )}
 
       <div className="instructor-license">
         <span className="license-label">Licença:</span>

@@ -20,6 +20,7 @@
 - Corrigir regras de ações em massa na agenda (`Confirmar todas` / `Cancelar todas`) por aba.
 - Melhorar filtros dos instrutores com autocomplete na busca da Home.
 - Manter filtros da Home em tempo real sem causar salto de scroll ao digitar com a lista já rolada.
+- Mostrar instrutores que solicitei no card da tela inicial.
 
 ## Pendente
 
@@ -33,7 +34,6 @@
 - Revisar ordenação e UX das listas de aulas do instrutor (pendentes, confirmadas, concluídas).
 - Exibir disponibilidade pública do instrutor de forma segura e resumida, sem expor dados desnecessários.
 - Evoluir filtro dos instrutores com mapa e busca mais avançada.
-- Mostrar instrutores que solicitei no card da tela inicial.
 - Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)
 - Esses cards de stats podem ir para o card Ganhos em instrutor e nomear esse card de outra coisa que melhor represente
 - Substituir identificadores do aluno por nickname consistente no backend/frontend.

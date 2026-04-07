@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from "react"
 import { InstructorCard } from "../components/InstructorCard"
 import { api } from "../services/api"
-import type { Instructor } from "../types"
+import { useAuth } from "../context/AuthContext"
+import type { Instructor, Lesson } from "../types"
 import "./Home.css"
 
 const today = new Date()
 const formatDateInput = (value: Date) => value.toISOString().split("T")[0]
 
 export function Home() {
+  const { user } = useAuth()
   const [allInstructors, setAllInstructors] = useState<Instructor[]>([])
   const [loading, setLoading] = useState(true)
   const [availabilityChecking, setAvailabilityChecking] = useState(false)
   const [availableInstructorIds, setAvailableInstructorIds] = useState<string[] | null>(null)
+  const [requestedInstructorIds, setRequestedInstructorIds] = useState<string[]>([])
   const [filters, setFilters] = useState({
     query: "",
     city: "",
@@ -23,6 +26,45 @@ export function Home() {
   useEffect(() => {
     void loadInstructors()
   }, [])
+
+  useEffect(() => {
+    if (!user || user.role !== "student") {
+      setRequestedInstructorIds([])
+      return
+    }
+
+    let cancelled = false
+
+    const loadRequestedInstructors = async () => {
+      try {
+        const bookings = await api.lessons.myBookings() as Lesson[]
+        if (cancelled) {
+          return
+        }
+
+        const instructorIds = Array.from(
+          new Set(
+            bookings
+              .filter((lesson) => lesson.status !== "cancelled")
+              .map((lesson) => lesson.instructor_id)
+          )
+        )
+
+        setRequestedInstructorIds(instructorIds)
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Failed to load requested instructors:", err)
+          setRequestedInstructorIds([])
+        }
+      }
+    }
+
+    void loadRequestedInstructors()
+
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   const loadInstructors = async () => {
     setLoading(true)
@@ -265,6 +307,12 @@ export function Home() {
                 <InstructorCard
                   key={instructor.id}
                   instructor={instructor}
+                  hasRequested={requestedInstructorIds.includes(instructor.id)}
+                  onBookingCreated={() =>
+                    setRequestedInstructorIds((prev) =>
+                      prev.includes(instructor.id) ? prev : [...prev, instructor.id]
+                    )
+                  }
                 />
               ))}
             </div>
