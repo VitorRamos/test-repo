@@ -15,6 +15,9 @@
 - Mover ações rápidas da agenda para o topo do painel lateral.
 - Adicionar filtro de seleção na agenda do instrutor (`Com eventos`, `Disponibilidades`, `Solicitações e aulas`).
 - Atualizar `tests/e2e.py` para o novo fluxo da agenda e melhorar reuso de contas.
+- Separar a agenda do instrutor em abas (`Disponibilidades`, `Solicitações`, `Confirmadas`) com ações por contexto.
+- Estabilizar o layout do painel lateral da agenda ao trocar abas e seleção de dias.
+- Corrigir regras de ações em massa na agenda (`Confirmar todas` / `Cancelar todas`) por aba.
 - Melhorar filtros dos instrutores com autocomplete na busca da Home.
 
 ## Pendente
@@ -26,7 +29,7 @@
 - Bloquear confirmação de código fora do horário da aula (regra de data/horário).
 - Permitir múltiplos horários no mesmo dia com edição inline.
 - Implementar notificações (email ou in-app) para confirmações/cancelamentos.
-- Expandir E2E para drag-select no calendário, filtro de seleção da agenda e remoção agrupada de disponibilidades.
+- Expandir E2E para drag-select no calendário, navegação entre abas da agenda, filtro de seleção da agenda e remoção agrupada de disponibilidades.
 - Revisar ordenação e UX das listas de aulas do instrutor (pendentes, confirmadas, concluídas).
 - Exibir disponibilidade pública do instrutor de forma segura e resumida, sem expor dados desnecessários.
 - Evoluir filtro dos instrutores com mapa e busca mais avançada.
