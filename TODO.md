@@ -40,3 +40,4 @@
 - O booking do aluno ainda pode ficar mais claro na seleção dos horários.
 - Permitir bloqueios/feriados de forma explícita na agenda, sem confundir com publicação de disponibilidade.
 - Foto instrutor
+- Nao scroll ao digitar no filtro quando ja fiz um scroll nos cards

@@ -249,13 +249,18 @@ export function Home() {
         </aside>
 
         <main className="home-main">
-          {loading || availabilityChecking ? (
+          {loading ? (
             <p className="loading">Carregando instrutores...</p>
           ) : instructors.length === 0 ? (
             <p className="no-results">Nenhum instrutor encontrado. Tente ajustar seus filtros.</p>
           ) : (
             <div className="instructors-list">
-              <h2>Instrutores Disponíveis ({instructors.length})</h2>
+              <div className="instructors-list-header">
+                <h2>Instrutores Disponíveis ({instructors.length})</h2>
+                {availabilityChecking && (
+                  <span className="instructors-list-status">Atualizando disponibilidade...</span>
+                )}
+              </div>
               {instructors.map((instructor) => (
                 <InstructorCard
                   key={instructor.id}
