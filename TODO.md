@@ -28,7 +28,6 @@
 - Adicionar migrations formais para `availability.start_date`, `availability.end_date` e `availability.days_of_week`.
 - Exibir informações do aluno para o instrutor nas listas de aulas (nome/contato).
 - Bloquear confirmação de código fora do horário da aula (regra de data/horário).
-- Permitir múltiplos horários no mesmo dia com edição inline.
 - Implementar notificações (email ou in-app) para confirmações/cancelamentos.
 - Expandir E2E para drag-select no calendário, navegação entre abas da agenda, filtro de seleção da agenda e remoção agrupada de disponibilidades.
 - Revisar ordenação e UX das listas de aulas do instrutor (pendentes, confirmadas, concluídas).
