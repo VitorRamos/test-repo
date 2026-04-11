@@ -21,6 +21,7 @@
 - Melhorar filtros dos instrutores com autocomplete na busca da Home.
 - Manter filtros da Home em tempo real sem causar salto de scroll ao digitar com a lista já rolada.
 - Mostrar instrutores que solicitei no card da tela inicial.
+- Em agendamentos ao clikar no instructor deve ir para o card dele
 - Esses cards de stats podem ir para o card Ganhos em instrutor e nomear esse card de outra coisa que melhor represente
 
 ## Pendente
@@ -38,4 +39,4 @@
 - Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)
 - Substituir identificadores do aluno por nickname consistente no backend/frontend.
 - Foto instrutor
-- Em agendamentos ao clikar no instructor deve ir para o card dele
+- Limpar canceladas, instrutor e aluno.

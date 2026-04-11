@@ -163,6 +163,28 @@
   color: var(--text);
 }
 
+.booking-link-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #0369a1;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.booking-link-btn:hover {
+  color: #0c4a6e;
+}
+
+.booking-link-btn:focus {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .booking-error {
   color: #991b1b;
   background: #fee2e2;

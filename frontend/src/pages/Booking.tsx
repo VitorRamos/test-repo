@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import { ScheduleCalendar } from "../components/ScheduleCalendar"
 import { api } from "../services/api"
 import type { AvailableDay, Instructor, Lesson, User } from "../types"
@@ -254,6 +254,15 @@ export function BookingPage({ user: _user }: BookingPageProps) {
     }
   }
 
+  const handleGoBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+
+    navigate(instructor ? `/instructors/${instructor.id}` : "/")
+  }
+
   if (loading) {
     return <div className="booking-page"><p>Carregando instrutor...</p></div>
   }
@@ -263,7 +272,9 @@ export function BookingPage({ user: _user }: BookingPageProps) {
       <div className="booking-page">
         <div className="booking-page-card">
           <p>{error || "Instrutor não encontrado."}</p>
-          <Link className="booking-page-link" to="/">Voltar para a busca</Link>
+          <button type="button" className="booking-page-link" onClick={handleGoBack}>
+            Voltar
+          </button>
         </div>
       </div>
     )
@@ -274,7 +285,7 @@ export function BookingPage({ user: _user }: BookingPageProps) {
       <div className="booking-page-card">
         <div className="booking-page-header">
           <div>
-            <Link className="booking-page-link" to="/">Voltar para a busca</Link>
+            <button type="button" className="booking-page-link" onClick={handleGoBack}>Voltar</button>
             <h1>Agendar Aula</h1>
             <p>
               {instructor.name} • {instructor.city}, {instructor.state}

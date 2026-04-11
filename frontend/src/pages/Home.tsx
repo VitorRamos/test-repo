@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { InstructorCard } from "../components/InstructorCard"
 import { api } from "../services/api"
 import { useAuth } from "../context/AuthContext"
@@ -10,11 +11,14 @@ const formatDateInput = (value: Date) => value.toISOString().split("T")[0]
 
 export function Home() {
   const { user } = useAuth()
+  const [searchParams] = useSearchParams()
   const [allInstructors, setAllInstructors] = useState<Instructor[]>([])
   const [loading, setLoading] = useState(true)
   const [availabilityChecking, setAvailabilityChecking] = useState(false)
   const [availableInstructorIds, setAvailableInstructorIds] = useState<string[] | null>(null)
   const [requestedInstructorIds, setRequestedInstructorIds] = useState<string[]>([])
+  const [hasAdjustedFiltersForTarget, setHasAdjustedFiltersForTarget] = useState(false)
+  const [hasScrolledToTarget, setHasScrolledToTarget] = useState(false)
   const [filters, setFilters] = useState({
     query: "",
     city: "",
@@ -22,10 +26,31 @@ export function Home() {
     rating_min: "",
     availability_only: true
   })
+  const highlightedInstructorId = searchParams.get("instructor")?.trim() || ""
 
   useEffect(() => {
     void loadInstructors()
   }, [])
+
+  useEffect(() => {
+    setHasAdjustedFiltersForTarget(false)
+    setHasScrolledToTarget(false)
+  }, [highlightedInstructorId])
+
+  useEffect(() => {
+    if (!highlightedInstructorId || hasAdjustedFiltersForTarget) {
+      return
+    }
+
+    setFilters({
+      query: "",
+      city: "",
+      price_max: "",
+      rating_min: "",
+      availability_only: false
+    })
+    setHasAdjustedFiltersForTarget(true)
+  }, [hasAdjustedFiltersForTarget, highlightedInstructorId])
 
   useEffect(() => {
     if (!user || user.role !== "student") {
@@ -195,6 +220,25 @@ export function Home() {
     return baseFilteredInstructors.filter((instructor) => allowedIds.has(instructor.id))
   }, [availableInstructorIds, baseFilteredInstructors, filters.availability_only])
 
+  useEffect(() => {
+    if (!highlightedInstructorId || hasScrolledToTarget) {
+      return
+    }
+
+    const isVisible = instructors.some((instructor) => instructor.id === highlightedInstructorId)
+    if (!isVisible) {
+      return
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      const element = document.getElementById(`instructor-card-${highlightedInstructorId}`)
+      element?.scrollIntoView({ behavior: "smooth", block: "center" })
+      setHasScrolledToTarget(true)
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [hasScrolledToTarget, highlightedInstructorId, instructors])
+
   return (
     <div className="home-container">
       <header className="home-hero">
@@ -308,6 +352,7 @@ export function Home() {
                   key={instructor.id}
                   instructor={instructor}
                   hasRequested={requestedInstructorIds.includes(instructor.id)}
+                  isHighlighted={instructor.id === highlightedInstructorId}
                 />
               ))}
             </div>

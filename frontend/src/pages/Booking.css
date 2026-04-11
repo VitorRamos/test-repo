@@ -31,9 +31,14 @@
 }
 
 .booking-page-link {
+  padding: 0;
+  border: none;
+  background: transparent;
   color: var(--accent);
   font-weight: 600;
+  font: inherit;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .booking-page-summary {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { ScheduleCalendar } from "../components/ScheduleCalendar"
 import { api } from "../services/api"
 import type { Lesson, User } from "../types"
@@ -37,6 +38,7 @@ const today = new Date()
 const todayKey = formatDateKey(today)
 
 export function MyBookings({ user }: MyBookingsProps) {
+  const navigate = useNavigate()
   const [bookings, setBookings] = useState<Lesson[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -358,6 +360,10 @@ export function MyBookings({ user }: MyBookingsProps) {
     setDisplayMonth(new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1))
   }
 
+  const handleOpenInstructor = (instructorId: string) => {
+    navigate(`/instructors/${instructorId}`)
+  }
+
   if (!user || user.role !== "student") {
     return <div className="bookings-container"><p>Acesso negado</p></div>
   }
@@ -448,7 +454,13 @@ export function MyBookings({ user }: MyBookingsProps) {
                             <div className="booking-header">
                               <div>
                                 <strong>Instrutor:</strong>{" "}
-                                {instructorNames[lesson.instructor_id] || "Carregando..."}
+                                <button
+                                  type="button"
+                                  className="booking-link-btn"
+                                  onClick={() => handleOpenInstructor(lesson.instructor_id)}
+                                >
+                                  {instructorNames[lesson.instructor_id] || "Carregando..."}
+                                </button>
                               </div>
                               <span className="booking-status">
                                 {statusLabels[lesson.status] || lesson.status}

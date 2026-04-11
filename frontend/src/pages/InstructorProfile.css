@@ -1,0 +1,202 @@
+.instructor-profile-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 2rem 3rem;
+}
+
+.instructor-profile-card {
+  display: grid;
+  gap: 1.5rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+}
+
+.instructor-profile-topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.instructor-profile-backlink {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.instructor-profile-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 1.5rem;
+  padding: 1.5rem;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.16), transparent 34%),
+    linear-gradient(135deg, #f8fbff 0%, #eef8ff 100%);
+  border: 1px solid #dbeafe;
+}
+
+.instructor-profile-kicker {
+  margin: 0 0 0.4rem;
+  color: #0369a1;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+}
+
+.instructor-profile-main h1 {
+  margin: 0;
+  color: var(--text-h);
+}
+
+.instructor-profile-location,
+.instructor-profile-bio {
+  color: var(--text);
+}
+
+.instructor-profile-location {
+  margin: 0.5rem 0 0;
+  font-weight: 600;
+}
+
+.instructor-profile-bio {
+  margin: 1rem 0 0;
+  line-height: 1.7;
+  max-width: 60ch;
+}
+
+.instructor-profile-summary {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.instructor-profile-stat {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.95rem 1rem;
+  background: white;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+}
+
+.instructor-profile-stat span {
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.instructor-profile-stat strong {
+  color: var(--text-h);
+}
+
+.instructor-profile-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.instructor-profile-section-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.instructor-profile-section-header h2 {
+  margin: 0;
+  color: var(--text-h);
+}
+
+.instructor-profile-section-header span,
+.instructor-profile-muted {
+  color: var(--text);
+}
+
+.instructor-availability-grid,
+.instructor-review-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.instructor-availability-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.instructor-availability-card,
+.instructor-review-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.instructor-availability-card strong,
+.instructor-review-header strong {
+  color: var(--text-h);
+}
+
+.instructor-availability-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.instructor-availability-chip,
+.instructor-availability-more {
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.instructor-availability-chip {
+  background: #e0f2fe;
+  color: #0c4a6e;
+}
+
+.instructor-availability-more {
+  background: #f1f5f9;
+  color: var(--text);
+}
+
+.instructor-review-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.instructor-review-header span,
+.instructor-review-card p {
+  color: var(--text);
+}
+
+.instructor-review-card p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .instructor-profile-page {
+    padding: 0 1rem 2rem;
+  }
+
+  .instructor-profile-card {
+    padding: 1rem;
+  }
+
+  .instructor-profile-hero {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+}
