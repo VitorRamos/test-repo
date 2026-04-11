@@ -25,6 +25,7 @@
 
 ## Pendente
 
+
 - Implementar fluxo de pagamento (escrow), incluindo `pending_payment` e liberação ao confirmar código.
 - Exibir informações do aluno para o instrutor nas listas de aulas (nome/contato).
 - Bloquear confirmação de código fora do horário da aula (regra de data/horário).
