@@ -21,21 +21,20 @@
 - Melhorar filtros dos instrutores com autocomplete na busca da Home.
 - Manter filtros da Home em tempo real sem causar salto de scroll ao digitar com a lista já rolada.
 - Mostrar instrutores que solicitei no card da tela inicial.
+- Esses cards de stats podem ir para o card Ganhos em instrutor e nomear esse card de outra coisa que melhor represente
 
 ## Pendente
 
 - Implementar fluxo de pagamento (escrow), incluindo `pending_payment` e liberação ao confirmar código.
-- Adicionar migrations para novas colunas de `lessons` e tabela `reviews` (incluindo `is_public`).
-- Adicionar migrations formais para `availability.start_date`, `availability.end_date` e `availability.days_of_week`.
 - Exibir informações do aluno para o instrutor nas listas de aulas (nome/contato).
 - Bloquear confirmação de código fora do horário da aula (regra de data/horário).
 - Implementar notificações (email ou in-app) para confirmações/cancelamentos.
+
 - Expandir E2E para drag-select no calendário, navegação entre abas da agenda, filtro de seleção da agenda e remoção agrupada de disponibilidades.
 - Revisar ordenação e UX das listas de aulas do instrutor (pendentes, confirmadas, concluídas).
 - Exibir disponibilidade pública do instrutor de forma segura e resumida, sem expor dados desnecessários.
 - Evoluir filtro dos instrutores com mapa e busca mais avançada.
 - Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)
-- Esses cards de stats podem ir para o card Ganhos em instrutor e nomear esse card de outra coisa que melhor represente
 - Substituir identificadores do aluno por nickname consistente no backend/frontend.
 - Foto instrutor
 - Em agendamentos ao clikar no instructor deve ir para o card dele
