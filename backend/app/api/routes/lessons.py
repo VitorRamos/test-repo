@@ -9,6 +9,7 @@ from backend.app.api.availability_utils import availability_matches_date, parse_
 from backend.app.api.deps import get_db, get_current_user
 from backend.app.models.instructor import Instructor
 from backend.app.models.lesson import Lesson
+from backend.app.models.student import Student
 from backend.app.models.user import User
 from backend.app.models.review import Review
 from backend.app.models.availability import Availability
@@ -20,11 +21,32 @@ def generate_code(length: int = 8) -> str:
     alphabet = string.ascii_uppercase + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
+
+def resolve_student_name(
+    student_user: User | None,
+    student_profile: Student | None = None
+) -> str | None:
+    if student_profile and student_profile.name:
+        return student_profile.name
+    if student_user and student_user.email:
+        local_part = student_user.email.split("@", 1)[0].strip()
+        return local_part or None
+    return None
+
+
+def get_student_profile_map(db: Session, user_ids: set) -> dict:
+    if not user_ids:
+        return {}
+    profiles = db.query(Student).filter(Student.user_id.in_(user_ids)).all()
+    return {profile.user_id: profile for profile in profiles}
+
+
 def lesson_to_read(
     lesson: Lesson,
     student: User | None,
     instructor: Instructor | None,
-    review: Review | None = None
+    review: Review | None = None,
+    student_profile: Student | None = None
 ) -> LessonRead:
     return LessonRead(
         id=lesson.id,
@@ -38,6 +60,7 @@ def lesson_to_read(
         confirmation_code=lesson.confirmation_code,
         code_confirmed_at=lesson.code_confirmed_at,
         code_confirmed_by_instructor=lesson.code_confirmed_by_instructor,
+        student_name=resolve_student_name(student, student_profile),
         student_email=student.email if student else None,
         instructor_name=instructor.name if instructor else None,
         has_review=review is not None,

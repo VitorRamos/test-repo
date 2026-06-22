@@ -24,12 +24,12 @@
 - Em agendamentos ao clikar no instructor deve ir para o card dele
 - Esses cards de stats podem ir para o card Ganhos em instrutor e nomear esse card de outra coisa que melhor represente
 - Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)
+- Exibir informações do aluno para o instrutor nas listas de aulas (nome/contato).
 
 ## Pendente
 
 
 - Implementar fluxo de pagamento (escrow), incluindo `pending_payment` e liberação ao confirmar código.
-- Exibir informações do aluno para o instrutor nas listas de aulas (nome/contato).
 - Bloquear confirmação de código fora do horário da aula (regra de data/horário).
 - Implementar notificações (email ou in-app) para confirmações/cancelamentos.
 

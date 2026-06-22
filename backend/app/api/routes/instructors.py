@@ -7,6 +7,7 @@ from backend.app.api.availability_utils import get_availability_weekdays, iter_c
 from backend.app.api.deps import get_db, get_current_user
 from backend.app.models.instructor import Instructor
 from backend.app.models.lesson import Lesson
+from backend.app.models.student import Student
 from backend.app.models.user import User
 from backend.app.models.review import Review
 from backend.app.models.availability import Availability
@@ -14,6 +15,7 @@ from backend.app.schemas.instructor import InstructorCreate, InstructorRead
 from backend.app.schemas.availability import AvailabilityCreate, AvailabilityRead
 from backend.app.schemas.lesson import LessonRead
 from backend.app.schemas.slot import AvailableDayRead
+from backend.app.api.routes.lessons import resolve_student_name
 
 router = APIRouter()
 
@@ -118,6 +120,10 @@ def get_my_lessons(
     student_ids = {lesson.student_id for lesson in lessons}
     students = db.query(User).filter(User.id.in_(student_ids)).all() if student_ids else []
     student_map = {student.id: student for student in students}
+    student_profiles = (
+        db.query(Student).filter(Student.user_id.in_(student_ids)).all() if student_ids else []
+    )
+    student_profile_map = {profile.user_id: profile for profile in student_profiles}
 
     lesson_ids = {lesson.id for lesson in lessons}
     reviews = db.query(Review).filter(Review.lesson_id.in_(lesson_ids)).all() if lesson_ids else []
@@ -126,6 +132,7 @@ def get_my_lessons(
     lesson_reads: list[LessonRead] = []
     for lesson in lessons:
         student = student_map.get(lesson.student_id)
+        student_profile = student_profile_map.get(lesson.student_id)
         review = review_map.get(lesson.id)
         lesson_reads.append(
             LessonRead(
@@ -140,6 +147,7 @@ def get_my_lessons(
                 confirmation_code=lesson.confirmation_code,
                 code_confirmed_at=lesson.code_confirmed_at,
                 code_confirmed_by_instructor=lesson.code_confirmed_by_instructor,
+                student_name=resolve_student_name(student, student_profile),
                 student_email=student.email if student else None,
                 instructor_name=instructor.name,
                 has_review=review is not None,

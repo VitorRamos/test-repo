@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from uuid import UUID
 
 from backend.app.db.session import SessionLocal
 from fastapi.security import OAuth2PasswordBearer
@@ -32,7 +33,21 @@ def get_current_user(
             detail="Token inválido"
         )
 
-    user = db.get(User, user_id)
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido"
+        )
+
+    try:
+        user_uuid = user_id if isinstance(user_id, UUID) else UUID(str(user_id))
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido"
+        )
+
+    user = db.get(User, user_uuid)
 
     if not user:
         raise HTTPException(status_code=401, detail="Usuário não encontrado")

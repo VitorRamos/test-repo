@@ -127,6 +127,11 @@ const formatLessonDuration = (lesson: Lesson) => {
   return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`
 }
 
+const getStudentDisplayName = (lesson: Lesson) =>
+  lesson.student_name?.trim() || lesson.student_email?.trim() || "Não informado"
+
+const getStudentContact = (lesson: Lesson) => lesson.student_email?.trim() || null
+
 const availabilityMatchesDate = (slot: Availability, dateKey: string) => {
   if (!slot.start_date || !slot.end_date) {
     return false
@@ -848,7 +853,12 @@ function InstructorScheduleBoard({
                                 • {formatLessonDuration(lesson)}
                               </strong>
                               <span>{lessonStatusLabel[lesson.status] || lesson.status}</span>
-                              <span>Aluno: {lesson.student_email || "Não informado"}</span>
+                              <span>Aluno: {getStudentDisplayName(lesson)}</span>
+                              {getStudentContact(lesson) && (
+                                <span className="schedule-student-contact">
+                                  Contato: {getStudentContact(lesson)}
+                                </span>
+                              )}
                             </div>
 
                             <div className="booking-actions">
@@ -928,7 +938,12 @@ function InstructorScheduleBoard({
                                 • {formatLessonDuration(lesson)}
                               </strong>
                               <span>{lessonStatusLabel[lesson.status] || lesson.status}</span>
-                              <span>Aluno: {lesson.student_email || "Não informado"}</span>
+                              <span>Aluno: {getStudentDisplayName(lesson)}</span>
+                              {getStudentContact(lesson) && (
+                                <span className="schedule-student-contact">
+                                  Contato: {getStudentContact(lesson)}
+                                </span>
+                              )}
                             </div>
 
                             {lesson.status === "confirmed" && (
@@ -1332,7 +1347,10 @@ export function InstructorPortal({ user }: DashboardProps) {
                     <strong>Status:</strong> {lesson.status === "completed" ? "Concluída" : "Cancelada"}
                   </div>
                   <div>
-                    <strong>Aluno:</strong> {lesson.student_email || "Não informado"}
+                    <strong>Aluno:</strong> {lesson.student_name || "Não informado"}
+                  </div>
+                  <div>
+                    <strong>Contato:</strong> {lesson.student_email || "Não informado"}
                   </div>
                   {lesson.status === "completed" && (
                     <div>

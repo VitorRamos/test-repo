@@ -1158,6 +1158,12 @@
   color: var(--text);
 }
 
+.schedule-student-contact {
+  color: var(--muted, #64748b);
+  font-size: 0.9em;
+  word-break: break-word;
+}
+
 .schedule-confirm-row {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr));
