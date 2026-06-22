@@ -11,6 +11,7 @@ import random
 import os
 from datetime import datetime, timedelta
 from selenium import webdriver
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.chrome.service import Service
@@ -428,7 +429,57 @@ def set_agenda_selection_filter_by_value(driver, value):
     Select(filters[0]).select_by_value(value)
     time.sleep(DELAY_SHORT)
 
-def select_calendar_date(driver, date_value):
+
+def go_to_instructor_central(driver):
+    driver.find_element(By.LINK_TEXT, "Central").click()
+    time.sleep(DELAY_SHORT)
+
+
+def clear_calendar_selection(driver):
+    buttons = driver.find_elements(By.CSS_SELECTOR, ".calendar-ghost-btn.danger")
+    for button in buttons:
+        if "Limpar seleção" in button.text:
+            if button.is_enabled():
+                button.click()
+                time.sleep(DELAY_SHORT)
+            return
+    raise AssertionError("Clear selection button not found")
+
+
+def get_selected_calendar_day_count(driver):
+    days = driver.find_elements(By.CSS_SELECTOR, ".schedule-calendar-grid .schedule-day.selected")
+    return len(days)
+
+
+def get_selection_chip_count(driver):
+    agenda = driver.find_element(By.ID, "agenda")
+    return len(agenda.find_elements(By.CSS_SELECTOR, ".schedule-selection-chip"))
+
+
+def get_selection_summary_text(driver):
+    agenda = driver.find_element(By.ID, "agenda")
+    headings = agenda.find_elements(By.CSS_SELECTOR, ".schedule-selection-bar h4")
+    assert headings, "Selection summary not found"
+    return headings[0].text.strip()
+
+
+def get_agenda_tabs(driver):
+    agenda = driver.find_element(By.ID, "agenda")
+    return agenda.find_elements(By.CSS_SELECTOR, ".schedule-editor-tab")
+
+
+def get_active_agenda_tab_text(driver):
+    agenda = driver.find_element(By.ID, "agenda")
+    active_tabs = agenda.find_elements(By.CSS_SELECTOR, ".schedule-editor-tab.active")
+    assert active_tabs, "No active agenda tab found"
+    return active_tabs[0].text.strip()
+
+
+def get_active_agenda_panel_text(driver):
+    return get_active_agenda_panel(driver).text
+
+
+def find_calendar_day_button(driver, date_value):
     target = datetime.strptime(date_value, "%Y-%m-%d")
 
     while True:
@@ -448,11 +499,63 @@ def select_calendar_date(driver, date_value):
             continue
         number = day_button.find_element(By.CSS_SELECTOR, ".schedule-day-number").text.strip()
         if number == str(target.day):
-            day_button.click()
-            time.sleep(DELAY_SHORT)
-            return
+            return day_button
 
     raise AssertionError(f"Could not find day {date_value} in calendar")
+
+
+def select_calendar_date(driver, date_value):
+    day_button = find_calendar_day_button(driver, date_value)
+    day_button.click()
+    time.sleep(DELAY_SHORT)
+
+
+def drag_select_calendar_range(driver, start_date, end_date):
+    start_button = find_calendar_day_button(driver, start_date)
+    end_button = find_calendar_day_button(driver, end_date)
+
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", start_button)
+    time.sleep(DELAY_SHORT)
+
+    actions = ActionChains(driver)
+    actions.click_and_hold(start_button).move_to_element(end_button).release().perform()
+    time.sleep(DELAY_MEDIUM)
+
+
+def publish_availability_on_dates(driver, start_time, end_time, date_values):
+    go_to_instructor_central(driver)
+    clear_calendar_selection(driver)
+
+    for date_value in date_values:
+        select_calendar_date(driver, date_value)
+
+    set_calendar_time_range(driver, start_time, end_time)
+    driver.find_element(By.CSS_SELECTOR, ".schedule-calendar-context .action-btn").click()
+    time.sleep(DELAY_MEDIUM)
+
+
+def get_availability_entries(driver):
+    open_agenda_tab(driver, "Disponibilidades")
+    panel = get_active_agenda_panel(driver)
+    return panel.find_elements(By.CSS_SELECTOR, ".schedule-entry.availability")
+
+
+def remove_first_availability_group(driver):
+    entries = get_availability_entries(driver)
+    assert entries, "No availability entries to remove"
+    remove_buttons = entries[0].find_elements(By.XPATH, ".//button[contains(., 'Remover')]")
+    assert remove_buttons, "Remove button not found on availability entry"
+    remove_buttons[0].click()
+    time.sleep(DELAY_MEDIUM)
+
+
+def remove_all_availabilities(driver):
+    open_agenda_tab(driver, "Disponibilidades")
+    panel = get_active_agenda_panel(driver)
+    buttons = panel.find_elements(By.XPATH, ".//button[contains(., 'Remover todas')]")
+    assert buttons, "Remover todas button not found"
+    buttons[0].click()
+    time.sleep(DELAY_MEDIUM)
 
 
 def set_calendar_time_range(driver, start_time, end_time):
@@ -1035,6 +1138,215 @@ def test_instructor_invalid_availability_rejected():
         close_driver(driver)
 
 
+def test_calendar_drag_select():
+    driver = create_driver()
+    driver.get(BASE_URL)
+
+    try:
+        ensure_instructor_account(driver, cache_key="instructor_drag_select")
+        go_to_instructor_central(driver)
+        clear_calendar_selection(driver)
+
+        day_one = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        day_three = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
+
+        drag_select_calendar_range(driver, day_one, day_three)
+
+        selected_count = get_selected_calendar_day_count(driver)
+        chip_count = get_selection_chip_count(driver)
+        summary = get_selection_summary_text(driver)
+
+        assert selected_count >= 3, f"Expected at least 3 selected days after drag, got {selected_count}"
+        assert chip_count >= 3, f"Expected at least 3 selection chips after drag, got {chip_count}"
+        assert "dia(s) selecionado(s)" in summary
+        assert int(summary.split()[0]) >= 3
+
+        # Dragging across already-selected days should remove them from the selection.
+        drag_select_calendar_range(driver, day_one, day_three)
+        time.sleep(DELAY_SHORT)
+
+        selected_after_remove = get_selected_calendar_day_count(driver)
+        assert selected_after_remove < selected_count, "Drag on selected days should remove them from selection"
+
+        print("✅ Calendar drag-select adds and removes day ranges")
+
+    finally:
+        close_driver(driver)
+
+
+def test_calendar_tab_navigation():
+    driver = create_driver()
+    driver.get(BASE_URL)
+
+    try:
+        instructor = create_instructor_with_availability(driver, "08:00", "12:00")
+        instructor_name = instructor["instructor_name"]
+        logout(driver)
+
+        student = ensure_student_account(driver, cache_key="student_tab_navigation")
+        booked = book_instructor_by_name(driver, instructor_name)
+        assert booked
+        logout(driver)
+
+        login(driver, instructor["email"], instructor["password"])
+        go_to_instructor_central(driver)
+        set_agenda_selection_filter_by_value(driver, "all")
+
+        tabs = get_agenda_tabs(driver)
+        tab_labels = [tab.text.strip() for tab in tabs]
+        assert "Disponibilidades" in tab_labels
+        assert "Solicitações" in tab_labels
+        assert "Confirmadas" in tab_labels
+
+        open_agenda_tab(driver, "Disponibilidades")
+        assert get_active_agenda_tab_text(driver) == "Disponibilidades"
+        availability_panel = get_active_agenda_panel(driver)
+        assert availability_panel.is_displayed()
+        availability_text = availability_panel.text
+        assert (
+            "08:00" in availability_text
+            or "Nenhuma disponibilidade" in availability_text
+            or "disponibilidade" in availability_text.lower()
+            or availability_panel.find_elements(By.CSS_SELECTOR, ".schedule-entry, .schedule-helper, .schedule-bulk-actions")
+        )
+
+        open_agenda_tab(driver, "Solicitações")
+        assert get_active_agenda_tab_text(driver) == "Solicitações"
+        solicitacoes_panel = get_active_agenda_panel(driver)
+        assert solicitacoes_panel.is_displayed()
+        solicitacoes_text = solicitacoes_panel.text
+        assert student["email"] in solicitacoes_text or "solicit" in solicitacoes_text.lower() or solicitacoes_panel.find_elements(
+            By.CSS_SELECTOR, ".schedule-entry, .schedule-helper"
+        )
+
+        open_agenda_tab(driver, "Confirmadas")
+        assert get_active_agenda_tab_text(driver) == "Confirmadas"
+        confirmadas_panel = get_active_agenda_panel(driver)
+        assert confirmadas_panel.is_displayed()
+        # Pending-only selections can yield an empty list (no confirmed lessons yet) with no helper copy.
+        assert confirmadas_panel.find_elements(
+            By.CSS_SELECTOR, ".schedule-section, .schedule-helper, .schedule-entry-list, .schedule-bulk-actions"
+        ), "Confirmadas tab should render its panel structure"
+
+        # Switching back keeps the previously active panel content accessible.
+        open_agenda_tab(driver, "Solicitações")
+        assert get_active_agenda_tab_text(driver) == "Solicitações"
+        assert get_active_agenda_panel(driver).is_displayed()
+
+        print("✅ Calendar tab navigation works between Disponibilidades, Solicitações and Confirmadas")
+
+    finally:
+        close_driver(driver)
+
+
+def test_calendar_selection_filter():
+    driver = create_driver()
+    driver.get(BASE_URL)
+
+    try:
+        instructor = create_instructor_with_availability(driver, "08:00", "12:00")
+        instructor_name = instructor["instructor_name"]
+        logout(driver)
+
+        ensure_student_account(driver, cache_key="student_selection_filter")
+        booked = book_instructor_by_name(driver, instructor_name)
+        assert booked
+        logout(driver)
+
+        login(driver, instructor["email"], instructor["password"])
+        go_to_instructor_central(driver)
+
+        filters = driver.find_elements(By.ID, "agenda-selection-filter")
+        assert filters, "Agenda selection filter not found"
+        options = [option.get_attribute("value") for option in Select(filters[0]).options]
+        assert "all" in options
+        assert "availability" in options
+        assert "lessons" in options
+
+        set_agenda_selection_filter_by_value(driver, "availability")
+        time.sleep(DELAY_SHORT)
+        availability_selected = get_selected_calendar_day_count(driver)
+        availability_chips = get_selection_chip_count(driver)
+        assert availability_selected >= 1, "Availability filter should select at least one day with availability"
+        assert availability_chips >= 1
+
+        set_agenda_selection_filter_by_value(driver, "lessons")
+        time.sleep(DELAY_SHORT)
+        lessons_selected = get_selected_calendar_day_count(driver)
+        lessons_chips = get_selection_chip_count(driver)
+        assert lessons_selected >= 1, "Lessons filter should select at least one day with lessons"
+        assert lessons_chips >= 1
+
+        set_agenda_selection_filter_by_value(driver, "all")
+        time.sleep(DELAY_SHORT)
+        all_selected = get_selected_calendar_day_count(driver)
+        all_chips = get_selection_chip_count(driver)
+        assert all_selected >= max(availability_selected, lessons_selected), (
+            "All filter should include at least as many days as the narrower filters"
+        )
+        assert all_chips >= max(availability_chips, lessons_chips)
+
+        # Re-applying the availability filter should keep at least one selectable day.
+        set_agenda_selection_filter_by_value(driver, "availability")
+        time.sleep(DELAY_SHORT)
+        reapplied_selected = get_selected_calendar_day_count(driver)
+        assert reapplied_selected >= 1, "Re-applying availability filter should restore selectable days"
+
+        print("✅ Calendar selection filter narrows and restores day selection")
+
+    finally:
+        close_driver(driver)
+
+
+def test_grouped_availability_removal():
+    driver = create_driver()
+    driver.get(BASE_URL)
+
+    try:
+        ensure_instructor_account(driver, cache_key="instructor_grouped_removal")
+
+        day_one = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        day_two = (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d")
+        day_three = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
+
+        # Publish the same time range across multiple days so the agenda groups them.
+        publish_availability_on_dates(driver, "08:00", "12:00", [day_one, day_two])
+        publish_availability_on_dates(driver, "13:00", "18:00", [day_three])
+
+        go_to_instructor_central(driver)
+        set_agenda_selection_filter_by_value(driver, "availability")
+        open_agenda_tab(driver, "Disponibilidades")
+        time.sleep(DELAY_SHORT)
+
+        entries = get_availability_entries(driver)
+        assert len(entries) >= 1, "Expected at least one grouped availability entry"
+
+        first_entry_text = entries[0].text
+        assert "08:00" in first_entry_text or "13:00" in first_entry_text
+        assert "Remover" in first_entry_text
+
+        # Remove one grouped slot range (may cover multiple days).
+        remove_first_availability_group(driver)
+        time.sleep(DELAY_SHORT)
+
+        entries_after_one = get_availability_entries(driver)
+        assert len(entries_after_one) < len(entries), "Removing one group should reduce availability entries"
+
+        # If anything remains, remove all remaining grouped availabilities at once.
+        if entries_after_one:
+            remove_all_availabilities(driver)
+            time.sleep(DELAY_SHORT)
+
+        panel_text = get_active_agenda_panel_text(driver)
+        remaining = get_availability_entries(driver)
+        assert len(remaining) == 0 or "Nenhuma disponibilidade publicada" in panel_text
+
+        print("✅ Grouped availability removal works for single group and remove-all")
+
+    finally:
+        close_driver(driver)
+
+
 # =========================
 # Runner
 # =========================
@@ -1055,6 +1367,10 @@ if __name__ == "__main__":
         "availability_blocks_booking": test_instructor_availability_blocks_booking,
         "conflict_booking": test_instructor_conflict_booking,
         "invalid_availability": test_instructor_invalid_availability_rejected,
+        "calendar_drag_select": test_calendar_drag_select,
+        "calendar_tab_navigation": test_calendar_tab_navigation,
+        "calendar_selection_filter": test_calendar_selection_filter,
+        "grouped_availability_removal": test_grouped_availability_removal,
     }
 
     parser = argparse.ArgumentParser(description="Run E2E tests")
