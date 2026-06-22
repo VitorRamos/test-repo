@@ -1252,6 +1252,10 @@
 .schedule-editor-tab {
   flex: 1;
   min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   padding: 1rem 1.2rem;
   border: none;
   background: transparent;
@@ -1276,6 +1280,34 @@
 .schedule-editor-tab.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
+}
+
+.schedule-editor-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.schedule-editor-tab.active .schedule-editor-tab-badge {
+  background: #e0f2fe;
+  color: var(--accent);
+}
+
+.schedule-lesson-note {
+  display: block;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.35;
+  margin-top: 0.25rem;
 }
 
 /* Tab Content */

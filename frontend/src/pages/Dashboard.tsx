@@ -30,11 +30,72 @@ const lessonStatusLabel: Record<string, string> = {
   pending_payment: "Pagamento pendente"
 }
 
-const activeLessonStatuses = ["pending_instructor", "confirmed", "pending_payment"] as const
+/** Lessons actionable or still relevant in the agenda (not cancelled/history-only). */
+const agendaLessonStatuses = [
+  "pending_instructor",
+  "confirmed",
+  "completed",
+  "pending_payment"
+] as const
+
+/** Days selectable via the "Solicitações e aulas" filter (actionable work, not completed archive). */
+const agendaSelectableStatuses = ["pending_instructor", "confirmed", "pending_payment"] as const
+
+const agendaStatusPriority: Record<string, number> = {
+  pending_instructor: 0,
+  pending_payment: 1,
+  confirmed: 2,
+  completed: 3,
+  cancelled: 4
+}
+
+/** Default agenda selection: today through this many days ahead (reduces bulk-action blast radius). */
+const DEFAULT_AGENDA_HORIZON_DAYS = 14
 
 const getLessonDateKey = (lesson: Lesson) => formatDateKey(new Date(lesson.scheduled_start))
 
-const isActiveLesson = (lesson: Lesson) => activeLessonStatuses.includes(lesson.status as (typeof activeLessonStatuses)[number])
+const isAgendaLesson = (lesson: Lesson) =>
+  agendaLessonStatuses.includes(lesson.status as (typeof agendaLessonStatuses)[number])
+
+const isAgendaSelectableLesson = (lesson: Lesson) =>
+  agendaSelectableStatuses.includes(lesson.status as (typeof agendaSelectableStatuses)[number])
+
+const compareLessonsForAgenda = (a: Lesson, b: Lesson) => {
+  const timeDiff = new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime()
+  if (timeDiff !== 0) {
+    return timeDiff
+  }
+  return (agendaStatusPriority[a.status] ?? 99) - (agendaStatusPriority[b.status] ?? 99)
+}
+
+const isPendingLesson = (lesson: Lesson) =>
+  lesson.status === "pending_instructor" || lesson.status === "pending_payment"
+
+const isConfirmedOrCompletedLesson = (lesson: Lesson) =>
+  lesson.status === "confirmed" || lesson.status === "completed"
+
+const buildDefaultAgendaSelection = (candidateDates: string[]) => {
+  if (candidateDates.length === 0) {
+    return []
+  }
+
+  const horizonEnd = formatDateKey(addDays(today, DEFAULT_AGENDA_HORIZON_DAYS))
+  const inHorizon = candidateDates.filter(
+    (dateKey) => dateKey >= todayKey && dateKey <= horizonEnd
+  )
+
+  if (inHorizon.length > 0) {
+    return inHorizon
+  }
+
+  // No upcoming work: fall back to the nearest past day with activity (single day, not full history).
+  const pastDates = candidateDates.filter((dateKey) => dateKey < todayKey)
+  if (pastDates.length > 0) {
+    return [pastDates[pastDates.length - 1]]
+  }
+
+  return [candidateDates[0]]
+}
 
 const lessonsOverlap = (a: Lesson, b: Lesson) => {
   const aStart = new Date(a.scheduled_start).getTime()
@@ -394,13 +455,13 @@ function InstructorScheduleBoard({
     const grouped = new Map<string, Lesson[]>()
 
     lessons
-      .filter((lesson) => isActiveLesson(lesson))
+      .filter((lesson) => isAgendaLesson(lesson))
       .filter((lesson) =>
         selectedDateSet.size > 0
           ? selectedDateSet.has(getLessonDateKey(lesson))
           : activeDate !== null && getLessonDateKey(lesson) === activeDate
       )
-      .sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime())
+      .sort(compareLessonsForAgenda)
       .forEach((lesson) => {
         const dateKey = getLessonDateKey(lesson)
         const current = grouped.get(dateKey) || []
@@ -415,7 +476,13 @@ function InstructorScheduleBoard({
       if (activeDate && right === activeDate) {
         return 1
       }
-      return left.localeCompare(right)
+      // Upcoming / active day first among the rest; past days after upcoming chronologically.
+      const leftIsPast = left < todayKey
+      const rightIsPast = right < todayKey
+      if (leftIsPast !== rightIsPast) {
+        return leftIsPast ? 1 : -1
+      }
+      return leftIsPast ? right.localeCompare(left) : left.localeCompare(right)
     })
 
     return orderedDateKeys.map((dateKey) => ({
@@ -490,21 +557,25 @@ function InstructorScheduleBoard({
   }, [selectedAvailability, selectedDates])
 
   const hasSelection = selectedDates.length > 0
-  const activeLessons = useMemo(
-    () => lessons.filter((lesson) => isActiveLesson(lesson)),
+  const agendaSelectableLessons = useMemo(
+    () => lessons.filter((lesson) => isAgendaSelectableLesson(lesson)),
     [lessons]
   )
   const pendingSelectedLessons = useMemo(
     () =>
       selectedLessonsByDate.flatMap(({ lessons: groupedLessons }) =>
-        groupedLessons.filter((lesson) => lesson.status === "pending_instructor")
+        groupedLessons.filter((lesson) => isPendingLesson(lesson))
       ),
     [selectedLessonsByDate]
   )
-  const pendingCancelableSelectedLessons = useMemo(
+  const confirmableSelectedLessons = useMemo(
+    () => pendingSelectedLessons.filter((lesson) => lesson.status === "pending_instructor"),
+    [pendingSelectedLessons]
+  )
+  const confirmedSelectedLessons = useMemo(
     () =>
       selectedLessonsByDate.flatMap(({ lessons: groupedLessons }) =>
-        groupedLessons.filter((lesson) => lesson.status === "pending_instructor")
+        groupedLessons.filter((lesson) => isConfirmedOrCompletedLesson(lesson))
       ),
     [selectedLessonsByDate]
   )
@@ -525,7 +596,7 @@ function InstructorScheduleBoard({
       }
     })
 
-    const lessonDates = new Set(activeLessons.map((lesson) => getLessonDateKey(lesson)))
+    const lessonDates = new Set(agendaSelectableLessons.map((lesson) => getLessonDateKey(lesson)))
 
     const allDates = Array.from(new Set([...availabilityDates, ...lessonDates])).sort()
 
@@ -534,18 +605,19 @@ function InstructorScheduleBoard({
       availability: Array.from(availabilityDates).sort(),
       lessons: Array.from(lessonDates).sort()
     }
-  }, [activeLessons, markersByDate])
+  }, [agendaSelectableLessons, markersByDate])
 
   useEffect(() => {
     if (hasInitializedSelection) {
       return
     }
 
-    const nextSelection = selectableDaysByFilter[selectionFilter]
-    if (nextSelection.length === 0) {
+    const candidateDates = selectableDaysByFilter[selectionFilter]
+    if (candidateDates.length === 0) {
       return
     }
 
+    const nextSelection = buildDefaultAgendaSelection(candidateDates)
     const nextActiveDate = getPreferredActiveDate(nextSelection)
     setSelectedDates(nextSelection)
     setActiveDate(nextActiveDate)
@@ -560,11 +632,12 @@ function InstructorScheduleBoard({
   const handleSelectionFilterChange = (value: "all" | "availability" | "lessons") => {
     setSelectionFilter(value)
     setHasInitializedSelection(true)
-    const nextSelection = selectableDaysByFilter[value]
-    setSelectedDates(nextSelection)
-    setActiveDate(getPreferredActiveDate(nextSelection))
-
+    const candidateDates = selectableDaysByFilter[value]
+    const nextSelection = buildDefaultAgendaSelection(candidateDates)
     const nextActiveDate = getPreferredActiveDate(nextSelection)
+    setSelectedDates(nextSelection)
+    setActiveDate(nextActiveDate)
+
     if (nextActiveDate) {
       const date = parseDateKey(nextActiveDate)
       setDisplayMonth(new Date(date.getFullYear(), date.getMonth(), 1))
@@ -727,6 +800,9 @@ function InstructorScheduleBoard({
               onClick={() => setActiveTab("availabilities")}
             >
               Disponibilidades
+              {groupedSelectedAvailability.length > 0 && (
+                <span className="schedule-editor-tab-badge">{groupedSelectedAvailability.length}</span>
+              )}
             </button>
             <button
               type="button"
@@ -734,6 +810,9 @@ function InstructorScheduleBoard({
               onClick={() => setActiveTab("solicitacoes")}
             >
               Solicitações
+              {pendingSelectedLessons.length > 0 && (
+                <span className="schedule-editor-tab-badge">{pendingSelectedLessons.length}</span>
+              )}
             </button>
             <button
               type="button"
@@ -741,6 +820,9 @@ function InstructorScheduleBoard({
               onClick={() => setActiveTab("aulas-confirmadas")}
             >
               Confirmadas
+              {confirmedSelectedLessons.length > 0 && (
+                <span className="schedule-editor-tab-badge">{confirmedSelectedLessons.length}</span>
+              )}
             </button>
           </div>
 
@@ -798,26 +880,28 @@ function InstructorScheduleBoard({
           <div className={`schedule-editor-tab-content lesson-day-tab${activeTab === "solicitacoes" ? " active" : ""}`}>
             <div className="schedule-section">
             <div className="schedule-bulk-actions">
-              {pendingSelectedLessons.length > 1 && (
+              {confirmableSelectedLessons.length > 1 && (
                 <button
                   className="action-btn"
                   type="button"
-                  onClick={() => void onConfirmAll(pendingSelectedLessons.map((lesson) => lesson.id))}
+                  onClick={() => void onConfirmAll(confirmableSelectedLessons.map((lesson) => lesson.id))}
                   disabled={confirmingAll || cancelingAll}
                 >
-                  {confirmingAll ? "Confirmando..." : `Confirmar todas (${pendingSelectedLessons.length})`}
+                  {confirmingAll
+                    ? "Confirmando..."
+                    : `Confirmar todas (${confirmableSelectedLessons.length})`}
                 </button>
               )}
-              {pendingCancelableSelectedLessons.length > 1 && (
+              {pendingSelectedLessons.length > 1 && (
                 <button
                   className="cancel-btn"
                   type="button"
                   onClick={() =>
-                    void onCancelAll(pendingCancelableSelectedLessons.map((lesson) => lesson.id))
+                    void onCancelAll(pendingSelectedLessons.map((lesson) => lesson.id))
                   }
                   disabled={cancelingAll || confirmingAll}
                 >
-                  {cancelingAll ? "Cancelando..." : `Cancelar todas (${pendingCancelableSelectedLessons.length})`}
+                  {cancelingAll ? "Cancelando..." : `Cancelar todas (${pendingSelectedLessons.length})`}
                 </button>
               )}
             </div>
@@ -829,7 +913,7 @@ function InstructorScheduleBoard({
             ) : (
               <div className="schedule-entry-list">
                 {selectedLessonsByDate.map(({ dateKey, lessons: groupedLessons }) => {
-                  const pendingLessons = groupedLessons.filter((l) => l.status === "pending_instructor")
+                  const pendingLessons = groupedLessons.filter((l) => isPendingLesson(l))
                   if (pendingLessons.length === 0) return null
                   return (
                     <div key={dateKey} className="schedule-day-group">
@@ -862,14 +946,21 @@ function InstructorScheduleBoard({
                             </div>
 
                             <div className="booking-actions">
-                              <button
-                                className="action-btn"
-                                type="button"
-                                onClick={() => void onConfirm(lesson.id)}
-                                disabled={confirmingId === lesson.id}
-                              >
-                                {confirmingId === lesson.id ? "Confirmando..." : "Confirmar"}
-                              </button>
+                              {lesson.status === "pending_instructor" && (
+                                <button
+                                  className="action-btn"
+                                  type="button"
+                                  onClick={() => void onConfirm(lesson.id)}
+                                  disabled={confirmingId === lesson.id}
+                                >
+                                  {confirmingId === lesson.id ? "Confirmando..." : "Confirmar"}
+                                </button>
+                              )}
+                              {lesson.status === "pending_payment" && (
+                                <span className="schedule-lesson-note">
+                                  Aguardando pagamento do aluno — sem ação necessária.
+                                </span>
+                              )}
                               <button
                                 className="cancel-btn"
                                 type="button"
@@ -908,13 +999,15 @@ function InstructorScheduleBoard({
             </div>
 
             {activeDate === null && selectedDates.length === 0 ? (
-              <p className="schedule-helper">Selecione um dia para ver aulas confirmadas.</p>
-            ) : selectedLessonsByDate.length === 0 ? (
-              <p className="schedule-helper">Nenhuma aula confirmada nas datas selecionadas.</p>
+              <p className="schedule-helper">Selecione um dia para ver aulas confirmadas ou concluídas.</p>
+            ) : confirmedSelectedLessons.length === 0 ? (
+              <p className="schedule-helper">Nenhuma aula confirmada ou concluída nas datas selecionadas.</p>
             ) : (
               <div className="schedule-entry-list">
                 {selectedLessonsByDate.map(({ dateKey, lessons: groupedLessons }) => {
-                  const confirmedLessons = groupedLessons.filter((l) => l.status === "confirmed" || l.status === "completed")
+                  const confirmedLessons = groupedLessons
+                    .filter((l) => isConfirmedOrCompletedLesson(l))
+                    .sort(compareLessonsForAgenda)
                   if (confirmedLessons.length === 0) return null
                   return (
                     <div key={dateKey} className="schedule-day-group">
@@ -943,6 +1036,9 @@ function InstructorScheduleBoard({
                                 <span className="schedule-student-contact">
                                   Contato: {getStudentContact(lesson)}
                                 </span>
+                              )}
+                              {lesson.status === "completed" && lesson.review_rating != null && (
+                                <span>Nota do aluno: ⭐ {lesson.review_rating}</span>
                               )}
                             </div>
 
@@ -986,16 +1082,13 @@ function InstructorScheduleBoard({
                             )}
 
                             {lesson.status === "completed" && (
-                              <div className="booking-actions">
-                                <button
-                                  className="cancel-btn"
-                                  type="button"
-                                  onClick={() => void onCancel(lesson.id)}
-                                  disabled={cancelingId === lesson.id}
-                                >
-                                  {cancelingId === lesson.id ? "Cancelando..." : "Cancelar"}
-                                </button>
-                              </div>
+                              <span className="schedule-lesson-note">
+                                Aula concluída
+                                {lesson.code_confirmed_at
+                                  ? ` em ${new Date(lesson.code_confirmed_at).toLocaleString("pt-BR")}`
+                                  : ""}
+                                . Detalhes completos no Histórico.
+                              </span>
                             )}
                           </div>
                         ))}
@@ -1290,9 +1383,18 @@ export function InstructorPortal({ user }: DashboardProps) {
         : lesson.status === historyFilter
     )
 
-    return items.sort(
-      (a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime()
-    )
+    return items.sort((a, b) => {
+      // Completed: prefer confirmation time when available, else scheduled start (newest first).
+      const aTime =
+        a.status === "completed" && a.code_confirmed_at
+          ? new Date(a.code_confirmed_at).getTime()
+          : new Date(a.scheduled_start).getTime()
+      const bTime =
+        b.status === "completed" && b.code_confirmed_at
+          ? new Date(b.code_confirmed_at).getTime()
+          : new Date(b.scheduled_start).getTime()
+      return bTime - aTime
+    })
   }, [historyFilter, lessons])
 
   if (!user || user.role !== "instructor") {
@@ -1400,6 +1502,8 @@ export function InstructorPortal({ user }: DashboardProps) {
                 <div key={lesson.id} className="booking-item">
                   <div>
                     <strong>Data:</strong> {new Date(lesson.scheduled_start).toLocaleString("pt-BR")}
+                    {" · "}
+                    {formatLessonDuration(lesson)}
                   </div>
                   <div>
                     <strong>Status:</strong> {lesson.status === "completed" ? "Concluída" : "Cancelada"}

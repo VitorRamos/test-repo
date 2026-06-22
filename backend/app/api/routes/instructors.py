@@ -115,8 +115,13 @@ def get_my_lessons(
     if not instructor:
         return []
     
-    # Get all lessons for this instructor
-    lessons = db.query(Lesson).filter(Lesson.instructor_id == instructor.id).all()
+    # Get all lessons for this instructor, soonest first for agenda/history clients
+    lessons = (
+        db.query(Lesson)
+        .filter(Lesson.instructor_id == instructor.id)
+        .order_by(Lesson.scheduled_start.asc())
+        .all()
+    )
     student_ids = {lesson.student_id for lesson in lessons}
     students = db.query(User).filter(User.id.in_(student_ids)).all() if student_ids else []
     student_map = {student.id: student for student in students}

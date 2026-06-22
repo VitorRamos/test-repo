@@ -121,6 +121,42 @@ def test_student_cannot_access_my_lessons_as_empty_when_not_instructor(client):
     assert response.json() == []
 
 
+def test_my_lessons_ordered_by_scheduled_start_ascending(
+    client, make_user, make_instructor, make_lesson, auth_headers
+):
+    instructor_user = make_user(role="instructor", email=f"inst_ord_{uuid.uuid4().hex[:8]}@example.com")
+    instructor = make_instructor(user=instructor_user)
+    student_user = make_user(email=f"stu_ord_{uuid.uuid4().hex[:8]}@example.com")
+
+    later = make_lesson(
+        student=student_user,
+        instructor=instructor,
+        status="confirmed",
+        scheduled_start=datetime.now() + timedelta(days=5),
+    )
+    earlier = make_lesson(
+        student=student_user,
+        instructor=instructor,
+        status="pending_instructor",
+        scheduled_start=datetime.now() + timedelta(days=2),
+    )
+    middle = make_lesson(
+        student=student_user,
+        instructor=instructor,
+        status="completed",
+        scheduled_start=datetime.now() + timedelta(days=3),
+    )
+
+    headers = auth_headers(client, instructor_user.email)
+    response = client.get("/api/instructors/my-lessons", headers=headers)
+    assert response.status_code == 200
+    payload = response.json()
+    relevant = [item for item in payload if item["id"] in {str(earlier.id), str(middle.id), str(later.id)}]
+    assert [item["id"] for item in relevant] == [str(earlier.id), str(middle.id), str(later.id)]
+    starts = [item["scheduled_start"] for item in relevant]
+    assert starts == sorted(starts)
+
+
 def test_book_lesson_requires_student_role(client):
     inst_email = f"inst_role_{uuid.uuid4().hex[:8]}@example.com"
     inst_headers = _register_login(client, inst_email)

@@ -303,12 +303,22 @@ def confirm_first_booking(driver):
     time.sleep(DELAY_SHORT)
 
 
+def _agenda_tab_label(tab):
+    """Tab buttons may append a numeric badge; normalize to the base label."""
+    text = (tab.text or "").strip()
+    if not text:
+        return ""
+    # Badge renders on its own line or as trailing digits ("Solicitações\n2", "Confirmadas 1").
+    first_line = text.splitlines()[0].strip()
+    return first_line.rstrip("0123456789").strip()
+
+
 def open_agenda_tab(driver, tab_text):
     agenda = driver.find_element(By.ID, "agenda")
     tabs = agenda.find_elements(By.CSS_SELECTOR, ".schedule-editor-tab")
     assert tabs, "Agenda tabs not found"
     for tab in tabs:
-        if tab.text.strip() == tab_text:
+        if _agenda_tab_label(tab) == tab_text or tab.text.strip() == tab_text:
             driver.execute_script("arguments[0].click();", tab)
             time.sleep(DELAY_SHORT)
             return
@@ -472,7 +482,7 @@ def get_active_agenda_tab_text(driver):
     agenda = driver.find_element(By.ID, "agenda")
     active_tabs = agenda.find_elements(By.CSS_SELECTOR, ".schedule-editor-tab.active")
     assert active_tabs, "No active agenda tab found"
-    return active_tabs[0].text.strip()
+    return _agenda_tab_label(active_tabs[0])
 
 
 def get_active_agenda_panel_text(driver):
@@ -1193,7 +1203,7 @@ def test_calendar_tab_navigation():
         set_agenda_selection_filter_by_value(driver, "all")
 
         tabs = get_agenda_tabs(driver)
-        tab_labels = [tab.text.strip() for tab in tabs]
+        tab_labels = [_agenda_tab_label(tab) for tab in tabs]
         assert "Disponibilidades" in tab_labels
         assert "Solicitações" in tab_labels
         assert "Confirmadas" in tab_labels
@@ -1223,10 +1233,16 @@ def test_calendar_tab_navigation():
         assert get_active_agenda_tab_text(driver) == "Confirmadas"
         confirmadas_panel = get_active_agenda_panel(driver)
         assert confirmadas_panel.is_displayed()
-        # Pending-only selections can yield an empty list (no confirmed lessons yet) with no helper copy.
+        # Pending-only selections should show an explicit empty helper (not a blank panel).
+        confirmadas_text = confirmadas_panel.text
         assert confirmadas_panel.find_elements(
             By.CSS_SELECTOR, ".schedule-section, .schedule-helper, .schedule-entry-list, .schedule-bulk-actions"
         ), "Confirmadas tab should render its panel structure"
+        assert (
+            "confirmada" in confirmadas_text.lower()
+            or "conclu" in confirmadas_text.lower()
+            or confirmadas_panel.find_elements(By.CSS_SELECTOR, ".schedule-entry, .schedule-helper")
+        ), "Confirmadas tab should show entries or an empty-state helper"
 
         # Switching back keeps the previously active panel content accessible.
         open_agenda_tab(driver, "Solicitações")
