@@ -54,6 +54,7 @@ export function MyBookings({ user }: MyBookingsProps) {
   const [selectedDates, setSelectedDates] = useState<string[]>([todayKey])
   const [activeDate, setActiveDate] = useState(todayKey)
   const [hasInitializedSelection, setHasInitializedSelection] = useState(false)
+  const [clearingCancelled, setClearingCancelled] = useState(false)
 
   const sortDateKeys = (values: string[]) =>
     [...values].sort((left, right) => parseDateKey(left).getTime() - parseDateKey(right).getTime())
@@ -163,10 +164,12 @@ export function MyBookings({ user }: MyBookingsProps) {
     }
   }, [activeDate, filter, selectableDaysByFilter, selectedDates])
 
-  const loadBookings = async () => {
+  const loadBookings = async ({ clearMessages = true }: { clearMessages?: boolean } = {}) => {
     setLoading(true)
     setError(null)
-    setActionMessage(null)
+    if (clearMessages) {
+      setActionMessage(null)
+    }
     try {
       const data = await api.lessons.myBookings()
       const lessons: Lesson[] = Array.isArray(data) ? (data as Lesson[]) : []
@@ -217,6 +220,49 @@ export function MyBookings({ user }: MyBookingsProps) {
       setError(err instanceof Error ? err.message : "Falha ao cancelar agendamento")
     } finally {
       setCancellingId(null)
+    }
+  }
+
+  const cancelledCount = useMemo(
+    () => bookings.filter((lesson) => lesson.status === "cancelled").length,
+    [bookings]
+  )
+
+  const handleClearCancelled = async () => {
+    if (cancelledCount === 0) {
+      return
+    }
+
+    const confirmMessage =
+      cancelledCount === 1
+        ? "Remover 1 agendamento cancelado do histórico?"
+        : `Remover ${cancelledCount} agendamentos cancelados do histórico?`
+
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
+    setClearingCancelled(true)
+    setError(null)
+    setActionMessage(null)
+    try {
+      const result = await api.lessons.clearCancelled()
+      const deleted = result?.deleted ?? 0
+      if (filter === "cancelled") {
+        setFilter("all")
+      }
+      await loadBookings({ clearMessages: false })
+      setActionMessage(
+        deleted === 0
+          ? "Nenhum agendamento cancelado para remover."
+          : deleted === 1
+            ? "1 agendamento cancelado removido."
+            : `${deleted} agendamentos cancelados removidos.`
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao limpar agendamentos cancelados")
+    } finally {
+      setClearingCancelled(false)
     }
   }
 
@@ -400,6 +446,17 @@ export function MyBookings({ user }: MyBookingsProps) {
                 <button className="calendar-ghost-btn" onClick={handleGoToday}>
                   Hoje
                 </button>
+                {cancelledCount > 0 && (
+                  <button
+                    className="clear-cancelled-btn"
+                    onClick={() => void handleClearCancelled()}
+                    disabled={clearingCancelled}
+                  >
+                    {clearingCancelled
+                      ? "Limpando..."
+                      : `Limpar cancelados (${cancelledCount})`}
+                  </button>
+                )}
               </div>
 
               <div className="bookings-calendar-card">

@@ -25,6 +25,7 @@
 - Esses cards de stats podem ir para o card Ganhos em instrutor e nomear esse card de outra coisa que melhor represente
 - Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)
 - Exibir informações do aluno para o instrutor nas listas de aulas (nome/contato).
+- Limpar canceladas, instrutor e aluno.
 
 ## Pendente
 
@@ -39,4 +40,3 @@
 - Evoluir filtro dos instrutores com mapa e busca mais avançada.
 - Substituir identificadores do aluno por nickname consistente no backend/frontend.
 - Foto instrutor
-- Limpar canceladas, instrutor e aluno.

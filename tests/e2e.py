@@ -610,6 +610,53 @@ def cancel_first_booking_as_student(driver, instructor_name=None):
     cancel_buttons[0].click()
     time.sleep(DELAY_SHORT)
 
+
+def clear_cancelled_bookings_as_student(driver):
+    go_to_my_bookings(driver)
+    buttons = driver.find_elements(By.CLASS_NAME, "clear-cancelled-btn")
+    assert len(buttons) > 0, "Clear cancelled button not found for student"
+    buttons[0].click()
+    accept_confirm_alert(driver)
+    time.sleep(DELAY_MEDIUM)
+
+
+def cancel_first_pending_as_instructor(driver, student_email=None):
+    driver.find_element(By.LINK_TEXT, "Central").click()
+    time.sleep(DELAY_SHORT)
+
+    set_agenda_selection_filter_by_value(driver, "lessons")
+    open_agenda_tab(driver, "Solicitações")
+    time.sleep(DELAY_SHORT)
+
+    if student_email:
+        target = find_schedule_entry_in_agenda(driver, student_email)
+    else:
+        target = find_first_schedule_entry_with_action(driver, "Cancelar")
+
+    cancel_buttons = target.find_elements(By.XPATH, ".//button[contains(., 'Cancelar')]")
+    assert len(cancel_buttons) > 0, "Instructor cancel button not found"
+    cancel_buttons[0].click()
+    accept_confirm_alert(driver)
+    time.sleep(DELAY_SHORT)
+
+
+def set_history_filter(driver, value):
+    filters = driver.find_elements(By.ID, "history-filter")
+    assert filters, "History filter not found"
+    Select(filters[0]).select_by_value(value)
+    time.sleep(DELAY_SHORT)
+
+
+def clear_cancelled_history_as_instructor(driver):
+    driver.find_element(By.LINK_TEXT, "Central").click()
+    time.sleep(DELAY_SHORT)
+    set_history_filter(driver, "cancelled")
+    buttons = driver.find_elements(By.CLASS_NAME, "clear-cancelled-btn")
+    assert len(buttons) > 0, "Clear cancelled button not found for instructor"
+    buttons[0].click()
+    accept_confirm_alert(driver)
+    time.sleep(DELAY_MEDIUM)
+
 # =========================
 # Tests
 # =========================
@@ -800,6 +847,86 @@ def test_cancel_booking_flow():
         close_driver(driver)
 
 
+def test_clear_cancelled_student_flow():
+    driver = create_driver()
+    driver.get(BASE_URL)
+
+    try:
+        instructor = create_instructor_with_availability(driver, "08:00", "12:00")
+        instructor_name = instructor["instructor_name"]
+        logout(driver)
+
+        ensure_student_account(driver, cache_key="student_clear_cancelled")
+        booked = book_instructor_by_name(driver, instructor_name)
+        assert booked
+
+        cancel_first_booking_as_student(driver, instructor_name)
+        show_cancelled_bookings(driver)
+        body = get_body(driver)
+        assert "Cancelada" in body
+        assert driver.find_elements(By.CLASS_NAME, "clear-cancelled-btn"), "Clear button should appear"
+
+        clear_cancelled_bookings_as_student(driver)
+        body = get_body(driver)
+        assert "agendamento cancelado removido" in body.lower() or "agendamentos cancelados removidos" in body.lower()
+
+        go_to_my_bookings(driver)
+        assert not driver.find_elements(By.CLASS_NAME, "clear-cancelled-btn"), "Clear button should disappear after cleanup"
+
+        set_booking_filter(driver, "cancelled")
+        body = get_body(driver)
+        cancelled_cards = [
+            card for card in driver.find_elements(By.CLASS_NAME, "booking-card")
+            if "Cancelada" in card.text
+        ]
+        assert len(cancelled_cards) == 0
+        print("✅ Student cleared cancelled bookings")
+
+    finally:
+        close_driver(driver)
+
+
+def test_clear_cancelled_instructor_flow():
+    driver = create_driver()
+    driver.get(BASE_URL)
+
+    try:
+        instructor = create_instructor_with_availability(driver, "08:00", "12:00")
+        logout(driver)
+
+        student = ensure_student_account(driver, cache_key="student_clear_cancelled_inst")
+        booked = book_instructor_by_name(driver, instructor["instructor_name"])
+        assert booked
+        logout(driver)
+
+        login(driver, instructor["email"], instructor["password"])
+        cancel_first_pending_as_instructor(driver, student["email"])
+
+        driver.find_element(By.LINK_TEXT, "Central").click()
+        time.sleep(DELAY_SHORT)
+        set_history_filter(driver, "cancelled")
+        body = get_body(driver)
+        assert "Cancelada" in body
+        assert driver.find_elements(By.CLASS_NAME, "clear-cancelled-btn"), "Clear button should appear"
+
+        clear_cancelled_history_as_instructor(driver)
+        body = get_body(driver)
+        assert "aula cancelada removida" in body.lower() or "aulas canceladas removidas" in body.lower()
+
+        driver.find_element(By.LINK_TEXT, "Central").click()
+        time.sleep(DELAY_SHORT)
+        assert not driver.find_elements(By.CLASS_NAME, "clear-cancelled-btn"), "Clear button should disappear after cleanup"
+
+        set_history_filter(driver, "cancelled")
+        body = get_body(driver)
+        history_card = driver.find_element(By.ID, "concluidas")
+        assert "Nenhuma aula encontrada para este filtro." in history_card.text
+        print("✅ Instructor cleared cancelled history")
+
+    finally:
+        close_driver(driver)
+
+
 def test_instructor_availability_blocks_booking():
     driver = create_driver()
     driver.get(BASE_URL)
@@ -923,6 +1050,8 @@ if __name__ == "__main__":
         "protected_route": test_protected_route,
         "booking_flow": test_booking_flow,
         "cancel_booking_flow": test_cancel_booking_flow,
+        "clear_cancelled_student": test_clear_cancelled_student_flow,
+        "clear_cancelled_instructor": test_clear_cancelled_instructor_flow,
         "availability_blocks_booking": test_instructor_availability_blocks_booking,
         "conflict_booking": test_instructor_conflict_booking,
         "invalid_availability": test_instructor_invalid_availability_rejected,

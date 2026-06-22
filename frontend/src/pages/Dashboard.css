@@ -136,6 +136,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .section-filter label {
@@ -152,6 +153,34 @@
   font-family: var(--sans);
   font-size: 0.95rem;
   background: white;
+}
+
+.clear-cancelled-btn {
+  padding: 0.55rem 0.85rem;
+  min-height: 40px;
+  border-radius: 6px;
+  border: 1px solid #fca5a5;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.clear-cancelled-btn:hover:not(:disabled) {
+  background: #fecaca;
+}
+
+.clear-cancelled-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.history-success {
+  color: #166534;
+  background: #dcfce7;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  margin: 0.75rem 0 0;
 }
 
 .earnings-item {

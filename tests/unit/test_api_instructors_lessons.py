@@ -168,6 +168,101 @@ def test_book_lesson_returns_student_contact_fields(client):
     assert body["instructor_name"] == instructor["name"]
 
 
+def test_clear_cancelled_lessons_as_student(
+    client, make_user, make_instructor, make_lesson, auth_headers
+):
+    instructor_user = make_user(role="instructor", email=f"inst_clr_{uuid.uuid4().hex[:8]}@example.com")
+    instructor = make_instructor(user=instructor_user)
+    student_user = make_user(email=f"stu_clr_{uuid.uuid4().hex[:8]}@example.com")
+    other_student = make_user(email=f"stu_clr_other_{uuid.uuid4().hex[:8]}@example.com")
+
+    cancelled = make_lesson(student=student_user, instructor=instructor, status="cancelled")
+    pending = make_lesson(
+        student=student_user,
+        instructor=instructor,
+        status="pending_instructor",
+        scheduled_start=datetime.now() + timedelta(days=2),
+    )
+    other_cancelled = make_lesson(
+        student=other_student,
+        instructor=instructor,
+        status="cancelled",
+        scheduled_start=datetime.now() + timedelta(days=3),
+    )
+    cancelled_id = str(cancelled.id)
+    pending_id = str(pending.id)
+    other_cancelled_id = str(other_cancelled.id)
+
+    headers = auth_headers(client, student_user.email)
+    response = client.delete("/api/lessons/cancelled", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["deleted"] == 1
+
+    bookings = client.get("/api/lessons/my-bookings", headers=headers)
+    assert bookings.status_code == 200
+    ids = {item["id"] for item in bookings.json()}
+    assert cancelled_id not in ids
+    assert pending_id in ids
+
+    other_headers = auth_headers(client, other_student.email)
+    other_bookings = client.get("/api/lessons/my-bookings", headers=other_headers)
+    other_ids = {item["id"] for item in other_bookings.json()}
+    assert other_cancelled_id in other_ids
+
+
+def test_clear_cancelled_lessons_as_instructor(
+    client, make_user, make_instructor, make_lesson, auth_headers
+):
+    instructor_user = make_user(role="instructor", email=f"inst_clr_i_{uuid.uuid4().hex[:8]}@example.com")
+    instructor = make_instructor(user=instructor_user)
+    other_instructor_user = make_user(
+        role="instructor", email=f"inst_clr_o_{uuid.uuid4().hex[:8]}@example.com"
+    )
+    other_instructor = make_instructor(user=other_instructor_user, name="Outro Instrutor")
+    student_user = make_user(email=f"stu_clr_i_{uuid.uuid4().hex[:8]}@example.com")
+
+    cancelled = make_lesson(student=student_user, instructor=instructor, status="cancelled")
+    completed = make_lesson(
+        student=student_user,
+        instructor=instructor,
+        status="completed",
+        scheduled_start=datetime.now() + timedelta(days=2),
+    )
+    other_cancelled = make_lesson(
+        student=student_user,
+        instructor=other_instructor,
+        status="cancelled",
+        scheduled_start=datetime.now() + timedelta(days=3),
+    )
+    cancelled_id = str(cancelled.id)
+    completed_id = str(completed.id)
+    other_cancelled_id = str(other_cancelled.id)
+
+    headers = auth_headers(client, instructor_user.email)
+    response = client.delete("/api/lessons/cancelled", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["deleted"] == 1
+
+    lessons = client.get("/api/instructors/my-lessons", headers=headers)
+    assert lessons.status_code == 200
+    ids = {item["id"] for item in lessons.json()}
+    assert cancelled_id not in ids
+    assert completed_id in ids
+
+    other_headers = auth_headers(client, other_instructor_user.email)
+    other_lessons = client.get("/api/instructors/my-lessons", headers=other_headers)
+    other_ids = {item["id"] for item in other_lessons.json()}
+    assert other_cancelled_id in other_ids
+
+
+def test_clear_cancelled_returns_zero_when_empty(client):
+    email = f"stu_clr_empty_{uuid.uuid4().hex[:8]}@example.com"
+    headers = _register_login(client, email)
+    response = client.delete("/api/lessons/cancelled", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["deleted"] == 0
+
+
 def test_my_bookings_for_student(client):
     inst_email = f"inst_mb_{uuid.uuid4().hex[:8]}@example.com"
     inst_headers = _register_login(client, inst_email)

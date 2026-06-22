@@ -100,7 +100,11 @@ export const api = {
     cancelLesson: (lessonId: string) =>
       api.request(`/lessons/${lessonId}/cancel`, {
         method: "POST"
-      })
+      }),
+    clearCancelled: () =>
+      api.request("/lessons/cancelled", {
+        method: "DELETE"
+      }) as Promise<{ deleted: number }>
   },
   reviews: {
     create: (data: { lesson_id: string; rating: number; comment?: string; is_public?: boolean }) =>

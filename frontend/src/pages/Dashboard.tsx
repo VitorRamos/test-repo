@@ -1026,7 +1026,9 @@ export function InstructorPortal({ user }: DashboardProps) {
   const [validatingId, setValidatingId] = useState<string | null>(null)
   const [cancelingId, setCancelingId] = useState<string | null>(null)
   const [cancelingAll, setCancelingAll] = useState(false)
+  const [clearingCancelled, setClearingCancelled] = useState(false)
   const [historyFilter, setHistoryFilter] = useState<"all" | "completed" | "cancelled">("completed")
+  const [historyMessage, setHistoryMessage] = useState<string | null>(null)
 
   useEffect(() => {
     void fetchData({ showLoading: true })
@@ -1238,6 +1240,49 @@ export function InstructorPortal({ user }: DashboardProps) {
     }
   }
 
+  const cancelledHistoryCount = useMemo(
+    () => lessons.filter((lesson) => lesson.status === "cancelled").length,
+    [lessons]
+  )
+
+  const handleClearCancelled = async () => {
+    if (cancelledHistoryCount === 0) {
+      return
+    }
+
+    const confirmMessage =
+      cancelledHistoryCount === 1
+        ? "Remover 1 aula cancelada do histórico?"
+        : `Remover ${cancelledHistoryCount} aulas canceladas do histórico?`
+
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
+    setClearingCancelled(true)
+    setHistoryMessage(null)
+    setRequestError(null)
+    try {
+      const result = await api.lessons.clearCancelled()
+      const deleted = result?.deleted ?? 0
+      if (historyFilter === "cancelled") {
+        setHistoryFilter("completed")
+      }
+      await fetchData()
+      setHistoryMessage(
+        deleted === 0
+          ? "Nenhuma aula cancelada para remover."
+          : deleted === 1
+            ? "1 aula cancelada removida do histórico."
+            : `${deleted} aulas canceladas removidas do histórico.`
+      )
+    } catch (err) {
+      setRequestError(err instanceof Error ? err.message : "Falha ao limpar aulas canceladas")
+    } finally {
+      setClearingCancelled(false)
+    }
+  }
+
   const historicalLessons = useMemo(() => {
     const items = lessons.filter((lesson) =>
       historyFilter === "all"
@@ -1332,8 +1377,21 @@ export function InstructorPortal({ user }: DashboardProps) {
                 <option value="completed">Concluídas</option>
                 <option value="cancelled">Canceladas</option>
               </select>
+              {cancelledHistoryCount > 0 && (
+                <button
+                  type="button"
+                  className="clear-cancelled-btn"
+                  onClick={() => void handleClearCancelled()}
+                  disabled={clearingCancelled}
+                >
+                  {clearingCancelled
+                    ? "Limpando..."
+                    : `Limpar canceladas (${cancelledHistoryCount})`}
+                </button>
+              )}
             </div>
           </div>
+          {historyMessage && <p className="history-success">{historyMessage}</p>}
           {historicalLessons.length === 0 ? (
             <p>Nenhuma aula encontrada para este filtro.</p>
           ) : (

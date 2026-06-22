@@ -357,3 +357,37 @@ def cancel_lesson(
     student = db.get(User, lesson.student_id)
     instructor = db.query(Instructor).filter(Instructor.id == lesson.instructor_id).first()
     return lesson_to_read(lesson, student, instructor)
+
+
+@router.delete("/cancelled")
+def clear_cancelled_lessons(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """Remove cancelled lessons from the current user's history (student or instructor view)."""
+    if user.role == "student":
+        lessons = db.query(Lesson).filter(
+            Lesson.student_id == user.id,
+            Lesson.status == "cancelled"
+        ).all()
+    elif user.role == "instructor":
+        instructor = db.query(Instructor).filter(Instructor.user_id == user.id).first()
+        if not instructor:
+            raise HTTPException(status_code=404, detail="Instrutor não encontrado")
+        lessons = db.query(Lesson).filter(
+            Lesson.instructor_id == instructor.id,
+            Lesson.status == "cancelled"
+        ).all()
+    else:
+        raise HTTPException(status_code=403, detail="Sem permissão para limpar aulas canceladas")
+
+    if not lessons:
+        return {"deleted": 0}
+
+    lesson_ids = [lesson.id for lesson in lessons]
+    db.query(Review).filter(Review.lesson_id.in_(lesson_ids)).delete(synchronize_session=False)
+    for lesson in lessons:
+        db.delete(lesson)
+    db.commit()
+
+    return {"deleted": len(lesson_ids)}
