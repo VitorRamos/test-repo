@@ -26,6 +26,7 @@
 - Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)
 - Exibir informações do aluno para o instrutor nas listas de aulas (nome/contato).
 - Limpar canceladas, instrutor e aluno.
+- Expandir E2E para drag-select no calendário, navegação entre abas da agenda, filtro de seleção da agenda e remoção agrupada de disponibilidades.
 
 ## Pendente
 
@@ -34,7 +35,6 @@
 - Bloquear confirmação de código fora do horário da aula (regra de data/horário).
 - Implementar notificações (email ou in-app) para confirmações/cancelamentos.
 
-- Expandir E2E para drag-select no calendário, navegação entre abas da agenda, filtro de seleção da agenda e remoção agrupada de disponibilidades.
 - Revisar ordenação e UX das listas de aulas do instrutor (pendentes, confirmadas, concluídas).
 - Exibir disponibilidade pública do instrutor de forma segura e resumida, sem expor dados desnecessários.
 - Evoluir filtro dos instrutores com mapa e busca mais avançada.
