@@ -23,6 +23,7 @@
 - Mostrar instrutores que solicitei no card da tela inicial.
 - Em agendamentos ao clikar no instructor deve ir para o card dele
 - Esses cards de stats podem ir para o card Ganhos em instrutor e nomear esse card de outra coisa que melhor represente
+- Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)
 
 ## Pendente
 
@@ -36,7 +37,6 @@
 - Revisar ordenação e UX das listas de aulas do instrutor (pendentes, confirmadas, concluídas).
 - Exibir disponibilidade pública do instrutor de forma segura e resumida, sem expor dados desnecessários.
 - Evoluir filtro dos instrutores com mapa e busca mais avançada.
-- Confirmar ao aceitar uma aula que ira cancelar outra devido ao overlap (criar um test para isso)
 - Substituir identificadores do aluno por nickname consistente no backend/frontend.
 - Foto instrutor
 - Limpar canceladas, instrutor e aluno.

@@ -298,6 +298,7 @@ def confirm_first_booking(driver):
     target = find_first_schedule_entry_with_action(driver, "Confirmar")
     confirm_button = target.find_element(By.XPATH, ".//button[contains(., 'Confirmar')]")
     confirm_button.click()
+    accept_confirm_alert(driver)
     time.sleep(DELAY_SHORT)
 
 
@@ -371,7 +372,20 @@ def find_schedule_entry_in_agenda(driver, text):
     raise AssertionError(f"Could not find schedule entry containing: {text}")
 
 
-def confirm_booking_for_student(driver, student_email):
+def accept_confirm_alert(driver, timeout=3):
+    end_time = time.time() + timeout
+    while time.time() < end_time:
+        try:
+            alert = driver.switch_to.alert
+            text = alert.text
+            alert.accept()
+            return text
+        except Exception:
+            time.sleep(0.1)
+    return None
+
+
+def confirm_booking_for_student(driver, student_email, expect_overlap_warning=False):
     driver.find_element(By.LINK_TEXT, "Central").click()
     time.sleep(DELAY_SHORT)
 
@@ -381,6 +395,11 @@ def confirm_booking_for_student(driver, student_email):
     target = find_schedule_entry_in_agenda(driver, student_email)
     confirm_button = target.find_element(By.XPATH, ".//button[contains(., 'Confirmar')]")
     confirm_button.click()
+    alert_text = accept_confirm_alert(driver)
+    if expect_overlap_warning:
+        assert alert_text is not None, "Expected overlap confirmation dialog"
+        assert "cancelar" in alert_text.lower()
+        assert "sobrep" in alert_text.lower()
     time.sleep(DELAY_SHORT)
 
 
@@ -846,9 +865,9 @@ def test_instructor_conflict_booking():
         assert "Agendamento enviado" in body or "Agendamentos enviados" in body
         logout(driver)
 
-        # Instructor confirms the first request
+        # Instructor confirms the first request and is warned about the overlapping cancel
         login(driver, instructor["email"], instructor["password"])
-        confirm_booking_for_student(driver, student1["email"])
+        confirm_booking_for_student(driver, student1["email"], expect_overlap_warning=True)
         open_agenda_tab(driver, "Solicitações")
         body = get_body(driver)
         assert "Confirmada" in body or "confirmar" in body.lower()
@@ -860,7 +879,7 @@ def test_instructor_conflict_booking():
         show_cancelled_bookings(driver)
         body = get_body(driver)
         assert "Cancelada" in body
-        print("✅ Conflicting pending booking cancelled after confirmation")
+        print("✅ Overlap warning shown and conflicting pending booking cancelled after confirmation")
 
     finally:
         close_driver(driver)

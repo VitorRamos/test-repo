@@ -36,6 +36,29 @@ const getLessonDateKey = (lesson: Lesson) => formatDateKey(new Date(lesson.sched
 
 const isActiveLesson = (lesson: Lesson) => activeLessonStatuses.includes(lesson.status as (typeof activeLessonStatuses)[number])
 
+const lessonsOverlap = (a: Lesson, b: Lesson) => {
+  const aStart = new Date(a.scheduled_start).getTime()
+  const aEnd = new Date(a.scheduled_end).getTime()
+  const bStart = new Date(b.scheduled_start).getTime()
+  const bEnd = new Date(b.scheduled_end).getTime()
+  return aStart < bEnd && aEnd > bStart
+}
+
+const getOverlappingPendingLessons = (lesson: Lesson, allLessons: Lesson[]) =>
+  allLessons.filter(
+    (other) =>
+      other.id !== lesson.id &&
+      other.status === "pending_instructor" &&
+      lessonsOverlap(lesson, other)
+  )
+
+const getConfirmOverlapMessage = (overlapCount: number) => {
+  if (overlapCount === 1) {
+    return "Confirmar esta solicitação irá cancelar 1 outra solicitação pendente que se sobrepõe neste horário. Deseja continuar?"
+  }
+  return `Confirmar esta solicitação irá cancelar ${overlapCount} outras solicitações pendentes que se sobrepõem neste horário. Deseja continuar?`
+}
+
 const getPreferredActiveDate = (dateKeys: string[]) => {
   if (dateKeys.length === 0) {
     return null
@@ -1024,6 +1047,21 @@ export function InstructorPortal({ user }: DashboardProps) {
   }
 
   const handleConfirm = async (lessonId: string) => {
+    const lesson = lessons.find((item) => item.id === lessonId)
+    if (!lesson) {
+      return
+    }
+
+    const overlappingPending = getOverlappingPendingLessons(lesson, lessons)
+    const confirmMessage =
+      overlappingPending.length > 0
+        ? getConfirmOverlapMessage(overlappingPending.length)
+        : "Confirmar esta solicitação de aula?"
+
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
     setConfirmingId(lessonId)
     setRequestError(null)
     try {
@@ -1041,10 +1079,30 @@ export function InstructorPortal({ user }: DashboardProps) {
       return
     }
 
-    const confirmMessage =
+    const selectedLessons = lessons.filter((lesson) => lessonIds.includes(lesson.id))
+    const selectedIdSet = new Set(lessonIds)
+    const cancelledOutsideSelection = new Set<string>()
+
+    for (const lesson of selectedLessons) {
+      for (const other of getOverlappingPendingLessons(lesson, lessons)) {
+        if (!selectedIdSet.has(other.id)) {
+          cancelledOutsideSelection.add(other.id)
+        }
+      }
+    }
+
+    let confirmMessage =
       lessonIds.length === 1
         ? "Confirmar esta solicitação de aula?"
         : `Confirmar ${lessonIds.length} solicitações de aula?`
+
+    if (cancelledOutsideSelection.size > 0) {
+      const count = cancelledOutsideSelection.size
+      confirmMessage =
+        count === 1
+          ? `Confirmar estas solicitações irá cancelar 1 outra solicitação pendente que se sobrepõe nos horários selecionados. Deseja continuar?`
+          : `Confirmar estas solicitações irá cancelar ${count} outras solicitações pendentes que se sobrepõem nos horários selecionados. Deseja continuar?`
+    }
 
     if (!window.confirm(confirmMessage)) {
       return
