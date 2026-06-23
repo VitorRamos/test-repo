@@ -1,2 +1,2 @@
-from .cpufreq import cpuFreq, CPUFreqErrorInit, CPUFreqBaseError
+from .cpufreq import cpuFreq, CPUFreqError, CPUFreqErrorInit
 from . import run

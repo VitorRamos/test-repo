@@ -31,20 +31,20 @@ class TestMethods(unittest.TestCase):
         # some versions of cpufreq driver dont raise
         # self.cpu.reset()
         # self.cpu.set_max_frequencies(ordered_freqs[0])
-        # with self.assertRaises(cpufreq.CPUFreqBaseError):
+        # with self.assertRaises(cpufreq.CPUFreqError):
         #     self.cpu.set_min_frequencies(ordered_freqs[1])
 
         # self.cpu.reset()
         # self.cpu.set_min_frequencies(ordered_freqs[1])
-        # with self.assertRaises(cpufreq.CPUFreqBaseError):
+        # with self.assertRaises(cpufreq.CPUFreqError):
         #     self.cpu.set_max_frequencies(ordered_freqs[0])
         
         # self.cpu.reset()
         # self.cpu.set_min_frequencies(ordered_freqs[2])
         # self.cpu.set_max_frequencies(ordered_freqs[4])
-        # with self.assertRaises(cpufreq.CPUFreqBaseError):
+        # with self.assertRaises(cpufreq.CPUFreqError):
         #     self.cpu.set_frequencies(ordered_freqs[5])
-        # with self.assertRaises(cpufreq.CPUFreqBaseError):
+        # with self.assertRaises(cpufreq.CPUFreqError):
         #     self.cpu.set_frequencies(ordered_freqs[1])
             
     def test_set_governos(self):
