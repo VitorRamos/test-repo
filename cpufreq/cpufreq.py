@@ -44,7 +44,7 @@ class cpuFreq:
     __instance = None
 
     def __new__(cls, *args, **kwargs):
-        if cpuFreq.__instance == None:
+        if cpuFreq.__instance is None:
             LINUX = sys.platform.startswith("linux")
             DRIVERFREQ = path.isfile(path.join(cpuFreq.BASEDIR,
                                                "cpu0",
@@ -53,30 +53,40 @@ class cpuFreq:
             if not LINUX:
                 raise CPUFreqErrorInit("ERROR: %s Class should be used only "
                                        "on Linux Systems." % cls.__name__)
-            elif not DRIVERFREQ:
+            if not DRIVERFREQ:
                 raise CPUFreqErrorInit("ERROR: %s Class should be used only "
                                        "with OS CPU Power driver activated (Linux ACPI "
                                        "module, for example)." % cls.__name__)
-            else:
-                cpuFreq.__instance = super().__new__(cls)
+            try:
+                instance = super().__new__(cls)
                 fpath = path.join("cpu0", "cpufreq", "scaling_driver")
-                datad = cpuFreq.__instance.__read_cpu_file(fpath)
+                datad = instance.__read_cpu_file(fpath)
                 datad = datad.rstrip("\n").split()[0]
 
                 fpath = path.join("cpu0", "cpufreq",
                                   "scaling_available_governors")
-                datag = cpuFreq.__instance.__read_cpu_file(fpath)
+                datag = instance.__read_cpu_file(fpath)
                 datag = datag.rstrip("\n").split()
 
+                # Not all cpufreq drivers expose discrete frequencies.
                 fpath = path.join("cpu0", "cpufreq",
                                   "scaling_available_frequencies")
-                dataf = cpuFreq.__instance.__read_cpu_file(fpath)
-                dataf = dataf.rstrip("\n").split()
+                freq_path = path.join(cpuFreq.BASEDIR, fpath)
+                if path.isfile(freq_path):
+                    dataf = instance.__read_cpu_file(fpath)
+                    dataf = dataf.rstrip("\n").split()
+                    available_frequencies = list(map(int, dataf))
+                else:
+                    available_frequencies = []
 
-                cpuFreq.__instance.driver = datad
-                cpuFreq.__instance.available_governors = datag
-                cpuFreq.__instance.available_frequencies = list(
-                    map(int, dataf))
+                instance.driver = datad
+                instance.available_governors = datag
+                instance.available_frequencies = available_frequencies
+                cpuFreq.__instance = instance
+            except OSError as e:
+                raise CPUFreqErrorInit(
+                    "ERROR: %s could not read cpufreq sysfs interface: %s"
+                    % (cls.__name__, e)) from e
 
         return cpuFreq.__instance
 
