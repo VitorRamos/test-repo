@@ -321,7 +321,11 @@ def get_public_availability_summary(
     instructor_id: str,
     db: Session = Depends(get_db)
 ):
-    """Safe public summary: weekdays + time windows only (no student/booking details)."""
+    """Safe public summary: weekdays + time windows only (no student/booking details).
+
+    Note: weekdays are a union across all availability rows; they are not paired
+    per time window (summary may look more flexible than configured slots).
+    """
     instructor = db.query(Instructor).filter(Instructor.id == instructor_id, Instructor.active).first()
     if not instructor:
         raise HTTPException(status_code=404, detail="Instrutor não encontrado")
