@@ -189,7 +189,7 @@ const formatLessonDuration = (lesson: Lesson) => {
 }
 
 const getStudentDisplayName = (lesson: Lesson) =>
-  lesson.student_name?.trim() || lesson.student_email?.trim() || "Não informado"
+  lesson.student_nickname?.trim() || lesson.student_name?.trim() || lesson.student_email?.trim() || "Não informado"
 
 const getStudentContact = (lesson: Lesson) => lesson.student_email?.trim() || null
 
@@ -1517,7 +1517,7 @@ export function InstructorPortal({ user }: DashboardProps) {
                     <strong>Status:</strong> {lesson.status === "completed" ? "Concluída" : "Cancelada"}
                   </div>
                   <div>
-                    <strong>Aluno:</strong> {lesson.student_name || "Não informado"}
+                    <strong>Aluno:</strong> {lesson.student_nickname || lesson.student_name || "Não informado"}
                   </div>
                   <div>
                     <strong>Contato:</strong> {lesson.student_email || "Não informado"}

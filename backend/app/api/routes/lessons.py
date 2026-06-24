@@ -44,6 +44,16 @@ def resolve_student_name(
     return None
 
 
+def resolve_student_nickname(
+    student_user: User | None,
+    student_profile: Student | None = None
+) -> str | None:
+    """Public-facing student label (nickname preferred over legal name/email)."""
+    if student_profile and student_profile.nickname:
+        return student_profile.nickname
+    return resolve_student_name(student_user, student_profile)
+
+
 def get_student_profile_map(db: Session, user_ids: set) -> dict:
     if not user_ids:
         return {}
@@ -71,6 +81,7 @@ def lesson_to_read(
         code_confirmed_at=lesson.code_confirmed_at,
         code_confirmed_by_instructor=lesson.code_confirmed_by_instructor,
         student_name=resolve_student_name(student, student_profile),
+        student_nickname=resolve_student_nickname(student, student_profile),
         student_email=student.email if student else None,
         instructor_name=instructor.name if instructor else None,
         has_review=review is not None,
