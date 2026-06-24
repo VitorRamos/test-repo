@@ -1,4 +1,3 @@
-from pydantic import BaseModel
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query, HTTPException
@@ -84,11 +83,6 @@ def become_instructor(
 
     return instructor
 
-
-
-
-class InstructorPhotoUpdate(BaseModel):
-    photo_url: str | None = None
 
 
 @router.patch("/me/photo", response_model=InstructorRead)
