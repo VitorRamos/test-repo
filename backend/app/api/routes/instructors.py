@@ -15,7 +15,7 @@ from backend.app.schemas.instructor import InstructorCreate, InstructorRead
 from backend.app.schemas.availability import AvailabilityCreate, AvailabilityRead
 from backend.app.schemas.lesson import LessonRead
 from backend.app.schemas.slot import AvailableDayRead
-from backend.app.api.routes.lessons import resolve_student_name
+from backend.app.api.routes.lessons import resolve_student_name, resolve_student_nickname
 
 router = APIRouter()
 
@@ -83,6 +83,22 @@ def become_instructor(
 
     return instructor
 
+
+
+@router.patch("/me/photo", response_model=InstructorRead)
+def update_my_photo(
+    data: InstructorPhotoUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    instructor = db.query(Instructor).filter(Instructor.user_id == user.id).first()
+    if not instructor:
+        raise HTTPException(status_code=404, detail="Instrutor não encontrado")
+    instructor.photo_url = data.photo_url
+    db.add(instructor)
+    db.commit()
+    db.refresh(instructor)
+    return instructor
 
 @router.get("/", response_model=list[InstructorRead])
 def search_instructors(
@@ -153,6 +169,7 @@ def get_my_lessons(
                 code_confirmed_at=lesson.code_confirmed_at,
                 code_confirmed_by_instructor=lesson.code_confirmed_by_instructor,
                 student_name=resolve_student_name(student, student_profile),
+                student_nickname=resolve_student_nickname(student, student_profile),
                 student_email=student.email if student else None,
                 instructor_name=instructor.name,
                 has_review=review is not None,

@@ -17,3 +17,4 @@ class Student(Base):
     name: Mapped[str]
     cpf: Mapped[str]
     license_category: Mapped[str]
+    nickname: Mapped[str | None] = mapped_column(nullable=True)

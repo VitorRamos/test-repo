@@ -27,3 +27,4 @@ class Instructor(Base):
     total_lessons: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     active: Mapped[bool] = mapped_column(default=True)
+    photo_url: Mapped[str | None] = mapped_column(nullable=True)
