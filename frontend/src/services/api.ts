@@ -126,6 +126,11 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data)
       }),
+    updatePhoto: (photo_url: string | null) =>
+      api.request("/instructors/me/photo", {
+        method: "PATCH",
+        body: JSON.stringify({ photo_url })
+      }),
 
     search: (filters?: any) => {
       const query = new URLSearchParams()
