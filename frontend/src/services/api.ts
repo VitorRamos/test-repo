@@ -120,6 +120,17 @@ export const api = {
       api.request(`/reviews/public/${instructorId}`, { method: "GET" }).catch(() => [])
   },
 
+  notifications: {
+    list: (unreadOnly = false) =>
+      api.request(`/notifications/${unreadOnly ? "?unread_only=true" : ""}`, { method: "GET" }).catch(() => []),
+    unreadCount: () =>
+      api.request("/notifications/unread-count", { method: "GET" }).catch(() => ({ count: 0 })),
+    markRead: (id: string) =>
+      api.request(`/notifications/${id}/read`, { method: "POST" }),
+    markAllRead: () =>
+      api.request("/notifications/read-all", { method: "POST" })
+  },
+
   instructors: {
     become: (data: any) =>
       api.request("/instructors/", {

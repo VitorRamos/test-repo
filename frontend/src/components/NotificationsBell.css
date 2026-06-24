@@ -1,0 +1,58 @@
+.notifications-bell { position: relative; }
+.notifications-trigger {
+  position: relative;
+  border: none;
+  background: transparent;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.notifications-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  background: #c0392b;
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  min-width: 1rem;
+  padding: 0 4px;
+}
+.notifications-panel {
+  position: absolute;
+  right: 0;
+  top: 120%;
+  width: 280px;
+  max-height: 320px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  z-index: 40;
+  padding: .5rem;
+}
+.notifications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: .5rem;
+  font-size: .85rem;
+}
+.notifications-header button {
+  border: none;
+  background: none;
+  color: #2563eb;
+  cursor: pointer;
+  font-size: .75rem;
+}
+.notifications-panel ul { list-style: none; margin: 0; padding: 0; }
+.notifications-panel li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: .45rem .35rem;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: .8rem;
+}
+.notifications-panel li.unread { background: #f8fafc; }
+.notifications-empty { font-size: .8rem; color: #666; margin: .5rem 0; }

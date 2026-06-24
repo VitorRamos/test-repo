@@ -1,3 +1,4 @@
+import { NotificationsBell } from "./NotificationsBell"
 import { Link, useNavigate } from "react-router-dom"
 import type { User } from "../types"
 import "./Navigation.css"
@@ -73,6 +74,7 @@ export function Navigation({ user, onLogout }: NavigationProps) {
           )}
         </div>
       </div>
+          <NotificationsBell />
     </nav>
   )
 }
