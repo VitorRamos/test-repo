@@ -15,7 +15,7 @@ from backend.app.schemas.instructor import InstructorCreate, InstructorRead
 from backend.app.schemas.availability import AvailabilityCreate, AvailabilityRead
 from backend.app.schemas.lesson import LessonRead
 from backend.app.schemas.slot import AvailableDayRead
-from backend.app.api.routes.lessons import resolve_student_name
+from backend.app.api.routes.lessons import resolve_student_name, resolve_student_nickname
 
 router = APIRouter()
 
@@ -169,6 +169,7 @@ def get_my_lessons(
                 code_confirmed_at=lesson.code_confirmed_at,
                 code_confirmed_by_instructor=lesson.code_confirmed_by_instructor,
                 student_name=resolve_student_name(student, student_profile),
+                student_nickname=resolve_student_nickname(student, student_profile),
                 student_email=student.email if student else None,
                 instructor_name=instructor.name,
                 has_review=review is not None,

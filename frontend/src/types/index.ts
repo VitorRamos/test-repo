@@ -44,6 +44,7 @@ export interface Lesson {
   code_confirmed_at: string | null
   code_confirmed_by_instructor: boolean
   student_name?: string | null
+  student_nickname?: string | null
   student_email?: string | null
   instructor_name?: string | null
   has_review?: boolean
