@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.api.deps import get_db, get_current_user
-from backend.app.api.routes.lessons import generate_code, lesson_to_read
+from backend.app.api.routes.lessons import generate_code
 from backend.app.models.instructor import Instructor
 from backend.app.models.lesson import Lesson
 from backend.app.models.payment import Payment
@@ -81,6 +81,10 @@ def pay_lesson(
     db.add(payment)
 
     lesson.status = "confirmed"
+    instructor = db.query(Instructor).filter(Instructor.id == lesson.instructor_id).first()
+    if instructor:
+        instructor.total_lessons += 1
+        db.add(instructor)
     if not lesson.confirmation_code:
         lesson.confirmation_code = generate_code()
     db.add(lesson)
@@ -132,5 +136,5 @@ def list_my_payments(
             return []
         payments = db.query(Payment).filter(Payment.instructor_id == instructor.id).all()
     else:
-        payments = db.query(Payment).all()
+        return []
     return [payment_to_read(p) for p in payments]

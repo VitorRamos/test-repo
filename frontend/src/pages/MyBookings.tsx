@@ -564,7 +564,17 @@ export function MyBookings({ user }: MyBookingsProps) {
                             {(lesson.status === "pending_instructor" ||
                               lesson.status === "confirmed" ||
                               lesson.status === "pending_payment") && (
-                              <button
+                                                            {lesson.status === "pending_payment" && (
+                                <button
+                                  type="button"
+                                  className="btn-primary"
+                                  disabled={payingId === lesson.id}
+                                  onClick={() => void handlePay(lesson.id)}
+                                >
+                                  {payingId === lesson.id ? "Processando…" : "Pagar (escrow)"}
+                                </button>
+                              )}
+<button
                                 className="cancel-btn"
                                 onClick={() => handleCancel(lesson.id)}
                                 disabled={cancellingId === lesson.id}

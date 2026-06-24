@@ -321,7 +321,6 @@ def confirm_booking(
     # Instructor accepts: student must pay before lesson is fully confirmed.
     lesson.status = "pending_payment"
     ensure_pending_payment_record(db, lesson)
-    instructor.total_lessons += 1
 
     db.add(lesson)
     db.add(instructor)
