@@ -115,12 +115,24 @@ def get_my_lessons(
     if not instructor:
         return []
     
-    # Get all lessons for this instructor, soonest first for agenda/history clients
+    # Group-friendly default order: actionable first, then soonest scheduled.
+    status_rank = {
+        "pending_instructor": 0,
+        "pending_payment": 1,
+        "confirmed": 2,
+        "completed": 3,
+        "cancelled": 4,
+    }
     lessons = (
         db.query(Lesson)
         .filter(Lesson.instructor_id == instructor.id)
-        .order_by(Lesson.scheduled_start.asc())
         .all()
+    )
+    lessons.sort(
+        key=lambda lesson: (
+            status_rank.get(lesson.status, 99),
+            lesson.scheduled_start,
+        )
     )
     student_ids = {lesson.student_id for lesson in lessons}
     students = db.query(User).filter(User.id.in_(student_ids)).all() if student_ids else []
