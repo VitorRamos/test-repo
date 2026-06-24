@@ -15,6 +15,7 @@ from backend.app.schemas.instructor import InstructorCreate, InstructorRead
 from backend.app.schemas.availability import AvailabilityCreate, AvailabilityRead
 from backend.app.schemas.lesson import LessonRead
 from backend.app.schemas.slot import AvailableDayRead
+from backend.app.schemas.public_availability import PublicAvailabilitySummary, PublicTimeWindow
 from backend.app.api.routes.lessons import resolve_student_name
 
 router = APIRouter()
@@ -312,6 +313,46 @@ def get_public_available_slots(
         raise HTTPException(status_code=400, detail="A data final deve ser maior ou igual à inicial")
     return get_available_slots_for_instructor(db, str(instructor.id), duration_hours, date_from, date_to)
 
+
+
+
+@router.get("/{instructor_id}/availability-summary", response_model=PublicAvailabilitySummary)
+def get_public_availability_summary(
+    instructor_id: str,
+    db: Session = Depends(get_db)
+):
+    """Safe public summary: weekdays + time windows only (no student/booking details)."""
+    instructor = db.query(Instructor).filter(Instructor.id == instructor_id, Instructor.active).first()
+    if not instructor:
+        raise HTTPException(status_code=404, detail="Instrutor não encontrado")
+
+    availability = db.query(Availability).filter(Availability.instructor_id == instructor.id).all()
+    weekday_set: set[int] = set()
+    windows: dict[tuple[str, str], PublicTimeWindow] = {}
+    date_from = None
+    date_to = None
+
+    for slot in availability:
+        for day in get_availability_weekdays(slot):
+            weekday_set.add(day)
+        key = (slot.start_time, slot.end_time)
+        windows[key] = PublicTimeWindow(start_time=slot.start_time, end_time=slot.end_time)
+        if slot.start_date and (date_from is None or slot.start_date < date_from):
+            date_from = slot.start_date
+        if slot.end_date and (date_to is None or slot.end_date > date_to):
+            date_to = slot.end_date
+
+    upcoming = get_available_slots_for_instructor(db, str(instructor.id), 1.0)
+    has_upcoming = any(day.get("slots") for day in upcoming)
+
+    return PublicAvailabilitySummary(
+        instructor_id=str(instructor.id),
+        weekdays=sorted(weekday_set),
+        time_windows=sorted(windows.values(), key=lambda w: (w.start_time, w.end_time)),
+        date_from=date_from,
+        date_to=date_to,
+        has_upcoming_slots=has_upcoming,
+    )
 
 @router.get("/{instructor_id}", response_model=InstructorRead)
 def get_instructor(
