@@ -148,8 +148,12 @@ export const api = {
     search: (filters?: any) => {
       const query = new URLSearchParams()
       if (filters?.city) query.append("city", filters.city)
+      if (filters?.state) query.append("state", filters.state)
+      if (filters?.q) query.append("q", filters.q)
       if (filters?.price_max) query.append("price_max", filters.price_max)
+      if (filters?.price_min) query.append("price_min", filters.price_min)
       if (filters?.rating_min) query.append("rating_min", filters.rating_min)
+      if (filters?.has_location) query.append("has_location", "true")
 
       const queryString = query.toString()
       return api.request(`/instructors/${queryString ? "?" + queryString : ""}`, {

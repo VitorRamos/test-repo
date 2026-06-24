@@ -104,20 +104,44 @@ def update_my_photo(
 def search_instructors(
     db: Session = Depends(get_db),
     city: str = Query(None),
+    state: str = Query(None),
+    q: str = Query(None),
     price_max: float = Query(None),
+    price_min: float = Query(None),
     rating_min: float = Query(None),
+    has_location: bool = Query(None),
 ):
     query = db.query(Instructor).filter(Instructor.active)
-    
+
     if city:
         query = query.filter(Instructor.city.ilike(f"%{city}%"))
-    
+
+    if state:
+        query = query.filter(Instructor.state.ilike(state.strip().upper()))
+
+    if q:
+        like = f"%{q.strip()}%"
+        query = query.filter(
+            (Instructor.name.ilike(like))
+            | (Instructor.city.ilike(like))
+            | (Instructor.bio.ilike(like))
+        )
+
     if price_max is not None:
         query = query.filter(Instructor.price_per_hour <= price_max)
-    
+
+    if price_min is not None:
+        query = query.filter(Instructor.price_per_hour >= price_min)
+
     if rating_min is not None:
         query = query.filter(Instructor.rating >= rating_min)
-    
+
+    if has_location is True:
+        query = query.filter(
+            Instructor.latitude.isnot(None),
+            Instructor.longitude.isnot(None),
+        )
+
     return query.all()
 
 @router.get("/my-lessons")
