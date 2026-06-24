@@ -193,6 +193,14 @@ const getStudentDisplayName = (lesson: Lesson) =>
 
 const getStudentContact = (lesson: Lesson) => lesson.student_email?.trim() || null
 
+const LessonListSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div className="lesson-list-section">
+    <h3 className="lesson-list-section-title">{title}</h3>
+    {children}
+  </div>
+)
+
+
 const availabilityMatchesDate = (slot: Availability, dateKey: string) => {
   if (!slot.start_date || !slot.end_date) {
     return false
