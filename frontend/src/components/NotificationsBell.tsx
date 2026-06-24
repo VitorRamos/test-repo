@@ -19,12 +19,16 @@ export function NotificationsBell() {
 
   const load = async () => {
     if (!user) return
-    const [list, unread] = await Promise.all([
-      api.notifications.list() as Promise<NotificationItem[]>,
-      api.notifications.unreadCount() as Promise<{ count: number }>
-    ])
-    setItems(list || [])
-    setCount(unread?.count || 0)
+    try {
+      const [list, unread] = await Promise.all([
+        api.notifications.list() as Promise<NotificationItem[]>,
+        api.notifications.unreadCount() as Promise<{ count: number }>
+      ])
+      setItems(list || [])
+      setCount(unread?.count || 0)
+    } catch {
+      // keep prior state on transient failures
+    }
   }
 
   useEffect(() => {
@@ -36,13 +40,36 @@ export function NotificationsBell() {
   if (!user) return null
 
   const markAll = async () => {
-    await api.notifications.markAllRead()
-    await load()
+    try {
+      await api.notifications.markAllRead()
+      await load()
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const openPanel = async () => {
+    const next = !open
+    setOpen(next)
+    if (next) {
+      await load()
+    }
+  }
+
+  const onItemClick = async (item: NotificationItem) => {
+    if (!item.read) {
+      try {
+        await api.notifications.markRead(item.id)
+        await load()
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   return (
     <div className="notifications-bell">
-      <button type="button" className="notifications-trigger" onClick={() => setOpen((v) => !v)} aria-label="Notificações">
+      <button type="button" className="notifications-trigger" onClick={() => void openPanel()} aria-label="Notificações">
         🔔
         {count > 0 && <span className="notifications-badge">{count}</span>}
       </button>
@@ -57,7 +84,16 @@ export function NotificationsBell() {
           ) : (
             <ul>
               {items.slice(0, 12).map((item) => (
-                <li key={item.id} className={item.read ? "read" : "unread"}>
+                <li
+                  key={item.id}
+                  className={item.read ? "read" : "unread"}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => void onItemClick(item)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") void onItemClick(item)
+                  }}
+                >
                   <strong>{item.title}</strong>
                   <span>{item.message}</span>
                 </li>

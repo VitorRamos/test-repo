@@ -21,8 +21,6 @@ export function Navigation({ user, onLogout }: NavigationProps) {
   return (
     <nav className="navbar">
       <div className="nav-container">
-        
-        {/* LEFT SIDE */}
         <div className="nav-left">
           <Link to="/" className="nav-brand">
             🚗 DriveHub
@@ -35,7 +33,6 @@ export function Navigation({ user, onLogout }: NavigationProps) {
           )}
         </div>
 
-        {/* RIGHT SIDE */}
         <div className="nav-menu">
           {!user ? (
             <>
@@ -67,6 +64,8 @@ export function Navigation({ user, onLogout }: NavigationProps) {
                 </>
               )}
 
+              <NotificationsBell />
+
               <button onClick={handleLogout} className="nav-logout">
                 Sair
               </button>
@@ -74,7 +73,6 @@ export function Navigation({ user, onLogout }: NavigationProps) {
           )}
         </div>
       </div>
-          <NotificationsBell />
     </nav>
   )
 }

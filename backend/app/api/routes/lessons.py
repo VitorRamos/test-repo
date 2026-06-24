@@ -287,8 +287,8 @@ def confirm_booking(
         db,
         user_id=lesson.student_id,
         type="lesson_confirmed",
-        title="Aula confirmada",
-        message=f"Sua aula com {instructor.name} foi confirmada pelo instrutor.",
+        title="Instrutor respondeu à sua solicitação",
+        message=f"{instructor.name} aceitou sua solicitação de aula. Verifique o status em Meus Agendamentos.",
         lesson_id=lesson.id,
     )
     db.commit()

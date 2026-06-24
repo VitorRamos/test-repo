@@ -121,8 +121,10 @@ export const api = {
   },
 
   notifications: {
-    list: (unreadOnly = false) =>
-      api.request(`/notifications/${unreadOnly ? "?unread_only=true" : ""}`, { method: "GET" }).catch(() => []),
+    list: (unreadOnly = false) => {
+      const qs = unreadOnly ? "?unread_only=true" : ""
+      return api.request(`/notifications${qs}`, { method: "GET" }).catch(() => [])
+    },
     unreadCount: () =>
       api.request("/notifications/unread-count", { method: "GET" }).catch(() => ({ count: 0 })),
     markRead: (id: string) =>
