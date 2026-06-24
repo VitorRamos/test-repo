@@ -14,6 +14,7 @@ from backend.app.models.user import User
 from backend.app.models.review import Review
 from backend.app.models.availability import Availability
 from backend.app.schemas.lesson import LessonBatchCreate, LessonCreate, LessonRead, LessonConfirmCode
+from backend.app.services.notifications import create_notification
 
 router = APIRouter()
 
@@ -303,6 +304,14 @@ def confirm_booking(
 
     db.add(lesson)
     db.add(instructor)
+    create_notification(
+        db,
+        user_id=lesson.student_id,
+        type="lesson_confirmed",
+        title="Instrutor respondeu à sua solicitação",
+        message=f"{instructor.name} aceitou sua solicitação de aula. Verifique o status em Meus Agendamentos.",
+        lesson_id=lesson.id,
+    )
     db.commit()
     db.refresh(lesson)
 
@@ -386,11 +395,31 @@ def cancel_lesson(
 
     lesson.status = "cancelled"
     db.add(lesson)
+
+    instructor = db.query(Instructor).filter(Instructor.id == lesson.instructor_id).first()
+    if user.role == "student" and instructor is not None:
+        create_notification(
+            db,
+            user_id=instructor.user_id,
+            type="lesson_cancelled",
+            title="Aula cancelada pelo aluno",
+            message="Um aluno cancelou uma aula agendada.",
+            lesson_id=lesson.id,
+        )
+    elif user.role == "instructor":
+        create_notification(
+            db,
+            user_id=lesson.student_id,
+            type="lesson_cancelled",
+            title="Aula cancelada pelo instrutor",
+            message="O instrutor cancelou sua aula agendada.",
+            lesson_id=lesson.id,
+        )
+
     db.commit()
     db.refresh(lesson)
 
     student = db.get(User, lesson.student_id)
-    instructor = db.query(Instructor).filter(Instructor.id == lesson.instructor_id).first()
     return lesson_to_read(lesson, student, instructor)
 
 

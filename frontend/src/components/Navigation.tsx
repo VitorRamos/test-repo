@@ -1,3 +1,4 @@
+import { NotificationsBell } from "./NotificationsBell"
 import { Link, useNavigate } from "react-router-dom"
 import type { User } from "../types"
 import "./Navigation.css"
@@ -20,8 +21,6 @@ export function Navigation({ user, onLogout }: NavigationProps) {
   return (
     <nav className="navbar">
       <div className="nav-container">
-        
-        {/* LEFT SIDE */}
         <div className="nav-left">
           <Link to="/" className="nav-brand">
             🚗 DriveHub
@@ -34,7 +33,6 @@ export function Navigation({ user, onLogout }: NavigationProps) {
           )}
         </div>
 
-        {/* RIGHT SIDE */}
         <div className="nav-menu">
           {!user ? (
             <>
@@ -65,6 +63,8 @@ export function Navigation({ user, onLogout }: NavigationProps) {
                   </Link>
                 </>
               )}
+
+              <NotificationsBell />
 
               <button onClick={handleLogout} className="nav-logout">
                 Sair

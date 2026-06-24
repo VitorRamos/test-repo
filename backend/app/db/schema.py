@@ -2,12 +2,6 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-def _ensure_columns(connection, table: str, definitions: dict[str, str], existing: set[str]) -> None:
-    for name, ddl_type in definitions.items():
-        if name not in existing:
-            connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl_type}"))
-
-
 def apply_development_schema_updates(engine: Engine) -> None:
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
@@ -15,17 +9,28 @@ def apply_development_schema_updates(engine: Engine) -> None:
     with engine.begin() as connection:
         if "availability" in tables:
             columns = {column["name"] for column in inspector.get_columns("availability")}
-            _ensure_columns(
-                connection,
-                "availability",
-                {
-                    "start_date": "DATE",
-                    "end_date": "DATE",
-                    "days_of_week": "VARCHAR",
-                },
-                columns,
-            )
+            for name, ddl in (
+                ("start_date", "DATE"),
+                ("end_date", "DATE"),
+                ("days_of_week", "VARCHAR"),
+            ):
+                if name not in columns:
+                    connection.execute(text(f"ALTER TABLE availability ADD COLUMN {name} {ddl}"))
 
-        if "instructors" in tables:
-            columns = {column["name"] for column in inspector.get_columns("instructors")}
-            _ensure_columns(connection, "instructors", {"photo_url": "VARCHAR"}, columns)
+        if "notifications" not in tables:
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS notifications (
+                        id UUID PRIMARY KEY,
+                        user_id UUID NOT NULL,
+                        type VARCHAR NOT NULL,
+                        title VARCHAR NOT NULL,
+                        message VARCHAR NOT NULL,
+                        lesson_id UUID,
+                        read BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMP
+                    )
+                    """
+                )
+            )
