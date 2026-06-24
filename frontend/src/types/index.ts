@@ -18,6 +18,8 @@ export interface Instructor {
   state: string
   created_at: string
   active: boolean
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface AuthResponse {

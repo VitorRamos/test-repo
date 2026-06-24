@@ -15,7 +15,7 @@ from backend.app.schemas.instructor import InstructorCreate, InstructorRead
 from backend.app.schemas.availability import AvailabilityCreate, AvailabilityRead
 from backend.app.schemas.lesson import LessonRead
 from backend.app.schemas.slot import AvailableDayRead
-from backend.app.api.routes.lessons import resolve_student_name
+from backend.app.api.routes.lessons import resolve_student_name, resolve_student_nickname
 
 router = APIRouter()
 
@@ -84,24 +84,64 @@ def become_instructor(
     return instructor
 
 
+
+@router.patch("/me/photo", response_model=InstructorRead)
+def update_my_photo(
+    data: InstructorPhotoUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    instructor = db.query(Instructor).filter(Instructor.user_id == user.id).first()
+    if not instructor:
+        raise HTTPException(status_code=404, detail="Instrutor não encontrado")
+    instructor.photo_url = data.photo_url
+    db.add(instructor)
+    db.commit()
+    db.refresh(instructor)
+    return instructor
+
 @router.get("/", response_model=list[InstructorRead])
 def search_instructors(
     db: Session = Depends(get_db),
     city: str = Query(None),
+    state: str = Query(None),
+    q: str = Query(None),
     price_max: float = Query(None),
+    price_min: float = Query(None),
     rating_min: float = Query(None),
+    has_location: bool = Query(None),
 ):
     query = db.query(Instructor).filter(Instructor.active)
-    
+
     if city:
         query = query.filter(Instructor.city.ilike(f"%{city}%"))
-    
+
+    if state:
+        query = query.filter(Instructor.state.ilike(state.strip().upper()))
+
+    if q:
+        like = f"%{q.strip()}%"
+        query = query.filter(
+            (Instructor.name.ilike(like))
+            | (Instructor.city.ilike(like))
+            | (Instructor.bio.ilike(like))
+        )
+
     if price_max is not None:
         query = query.filter(Instructor.price_per_hour <= price_max)
-    
+
+    if price_min is not None:
+        query = query.filter(Instructor.price_per_hour >= price_min)
+
     if rating_min is not None:
         query = query.filter(Instructor.rating >= rating_min)
-    
+
+    if has_location is True:
+        query = query.filter(
+            Instructor.latitude.isnot(None),
+            Instructor.longitude.isnot(None),
+        )
+
     return query.all()
 
 @router.get("/my-lessons")
@@ -153,6 +193,7 @@ def get_my_lessons(
                 code_confirmed_at=lesson.code_confirmed_at,
                 code_confirmed_by_instructor=lesson.code_confirmed_by_instructor,
                 student_name=resolve_student_name(student, student_profile),
+                student_nickname=resolve_student_nickname(student, student_profile),
                 student_email=student.email if student else None,
                 instructor_name=instructor.name,
                 has_review=review is not None,

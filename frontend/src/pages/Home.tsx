@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { InstructorCard } from "../components/InstructorCard"
+import { InstructorMap } from "../components/InstructorMap"
 import { api } from "../services/api"
 import { useAuth } from "../context/AuthContext"
 import type { Instructor, Lesson } from "../types"
@@ -22,9 +23,12 @@ export function Home() {
   const [filters, setFilters] = useState({
     query: "",
     city: "",
+    state: "",
+    price_min: "",
     price_max: "",
     rating_min: "",
-    availability_only: true
+    availability_only: true,
+    has_location: false
   })
   const highlightedInstructorId = searchParams.get("instructor")?.trim() || ""
 
@@ -45,9 +49,12 @@ export function Home() {
     setFilters({
       query: "",
       city: "",
+      state: "",
+      price_min: "",
       price_max: "",
       rating_min: "",
-      availability_only: false
+      availability_only: false,
+      has_location: false
     })
     setHasAdjustedFiltersForTarget(true)
   }, [hasAdjustedFiltersForTarget, highlightedInstructorId])
@@ -122,6 +129,14 @@ export function Home() {
       Array.from(
         new Set(
           allInstructors
+      <div className="home-advanced-filters" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.75rem" }}>
+        <input aria-label="Estado" placeholder="UF" value={filters.state} onChange={(e) => setFilters((f) => ({ ...f, state: e.target.value }))} style={{ width: "4rem" }} />
+        <input aria-label="Preço mínimo" placeholder="Preço mín" type="number" value={filters.price_min} onChange={(e) => setFilters((f) => ({ ...f, price_min: e.target.value }))} style={{ width: "7rem" }} />
+        <label style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.85rem" }}>
+          <input type="checkbox" checked={filters.has_location} onChange={(e) => setFilters((f) => ({ ...f, has_location: e.target.checked }))} />
+          Só com localização
+        </label>
+      </div>
             .map((instructor) => instructor.city.trim())
             .filter(Boolean)
         )
@@ -149,25 +164,52 @@ export function Home() {
   const baseFilteredInstructors = useMemo(() => {
     const normalizedQuery = filters.query.trim().toLocaleLowerCase("pt-BR")
     const normalizedCity = filters.city.trim().toLocaleLowerCase("pt-BR")
+    const normalizedState = filters.state.trim().toLocaleUpperCase("pt-BR")
+    const priceMin = filters.price_min ? Number(filters.price_min) : null
     const priceMax = filters.price_max ? Number(filters.price_max) : null
     const ratingMin = filters.rating_min ? Number(filters.rating_min) : null
 
     return allInstructors.filter((instructor) => {
       const matchesQuery =
         normalizedQuery === "" ||
-        [instructor.name, instructor.city, instructor.state]
+        [instructor.name, instructor.city, instructor.state, instructor.bio || ""]
           .some((value) => value.toLocaleLowerCase("pt-BR").includes(normalizedQuery))
 
       const matchesCity =
         normalizedCity === "" ||
         instructor.city.toLocaleLowerCase("pt-BR").includes(normalizedCity)
 
+      const matchesState =
+        normalizedState === "" ||
+        instructor.state.toLocaleUpperCase("pt-BR") === normalizedState
+
+      const matchesPriceMin = priceMin === null || instructor.price_per_hour >= priceMin
       const matchesPrice = priceMax === null || instructor.price_per_hour <= priceMax
       const matchesRating = ratingMin === null || instructor.rating >= ratingMin
+      const matchesLocation =
+        !filters.has_location ||
+        (instructor.latitude != null && instructor.longitude != null)
 
-      return matchesQuery && matchesCity && matchesPrice && matchesRating
+      return (
+        matchesQuery &&
+        matchesCity &&
+        matchesState &&
+        matchesPriceMin &&
+        matchesPrice &&
+        matchesRating &&
+        matchesLocation
+      )
     })
-  }, [allInstructors, filters.city, filters.price_max, filters.query, filters.rating_min])
+  }, [
+    allInstructors,
+    filters.city,
+    filters.has_location,
+    filters.price_max,
+    filters.price_min,
+    filters.query,
+    filters.rating_min,
+    filters.state
+  ])
 
   useEffect(() => {
     if (!filters.availability_only) {

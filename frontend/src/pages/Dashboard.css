@@ -1691,3 +1691,19 @@
     width: 100%;
   }
 }
+
+
+.lesson-list-section-title {
+  margin: 1rem 0 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.lesson-list-empty-hint {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0.25rem 0 0.75rem;
+}

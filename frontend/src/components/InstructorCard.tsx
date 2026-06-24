@@ -46,6 +46,20 @@ export function InstructorCard({
       className={`instructor-card${isHighlighted ? " instructor-card-highlighted" : ""}`}
     >
       <div className="instructor-header">
+        <div className="instructor-avatar-wrap">
+          {instructor.photo_url ? (
+            <img
+              className="instructor-avatar"
+              src={instructor.photo_url}
+              alt={instructor.name}
+              loading="lazy"
+            />
+          ) : (
+            <div className="instructor-avatar instructor-avatar-fallback" aria-hidden>
+              {instructor.name.trim().charAt(0).toUpperCase() || "?"}
+            </div>
+          )}
+        </div>
         <h3>
           <Link className="instructor-profile-link" to={`/instructors/${instructor.id}`}>
             {instructor.name}
