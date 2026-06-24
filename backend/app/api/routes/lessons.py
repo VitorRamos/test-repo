@@ -26,8 +26,6 @@ def resolve_student_name(
     student_user: User | None,
     student_profile: Student | None = None
 ) -> str | None:
-    if student_profile and getattr(student_profile, "nickname", None):
-        return student_profile.nickname
     if student_profile and student_profile.name:
         return student_profile.name
     if student_user and student_user.email:
@@ -41,6 +39,8 @@ def resolve_student_nickname(
     student_profile: Student | None = None
 ) -> str | None:
     """Public-facing student label (nickname preferred over legal name/email)."""
+    if student_profile and student_profile.nickname:
+        return student_profile.nickname
     return resolve_student_name(student_user, student_profile)
 
 
