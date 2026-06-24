@@ -311,8 +311,23 @@ def confirm_lesson_code(
         raise HTTPException(status_code=400, detail="Aula não pode ser validada")
 
     if not lesson.confirmation_code or lesson.confirmation_code != data.code:
-        print(lesson.confirmation_code)
         raise HTTPException(status_code=400, detail="Código inválido")
+
+    now = datetime.now()
+    # Allow code validation only during the lesson window, with a short grace period.
+    grace = timedelta(minutes=30)
+    window_start = lesson.scheduled_start - grace
+    window_end = lesson.scheduled_end + grace
+    if now < window_start:
+        raise HTTPException(
+            status_code=400,
+            detail="Só é possível confirmar o código no horário da aula (ou até 30 min antes)"
+        )
+    if now > window_end:
+        raise HTTPException(
+            status_code=400,
+            detail="Prazo para confirmar o código desta aula expirou"
+        )
 
     lesson.status = "completed"
     lesson.code_confirmed_at = datetime.now()

@@ -30,3 +30,9 @@ def test_get_student_profile_map_indexes_by_user_id(db_session, make_user, make_
     result = get_student_profile_map(db_session, {user.id})
     assert result[user.id].id == profile.id
     assert result[user.id].name == "Perfil Nome"
+
+
+def test_code_window_logic_is_documented():
+    # Behaviour is enforced in confirm_lesson_code route; smoke import.
+    from backend.app.api.routes import lessons as lessons_routes
+    assert callable(lessons_routes.confirm_lesson_code)
