@@ -14,8 +14,19 @@ from backend.app.models.user import User
 from backend.app.models.review import Review
 from backend.app.models.availability import Availability
 from backend.app.schemas.lesson import LessonBatchCreate, LessonCreate, LessonRead, LessonConfirmCode
+from backend.app.services.notifications import create_notification
 
 router = APIRouter()
+
+CODE_CONFIRM_GRACE = timedelta(minutes=30)
+
+def is_within_code_confirm_window(scheduled_start, scheduled_end, now=None, grace=None) -> bool:
+    """Return True if now is inside [start-grace, end+grace] for code confirmation."""
+    now = now if now is not None else datetime.now()
+    grace = grace if grace is not None else CODE_CONFIRM_GRACE
+    return (scheduled_start - grace) <= now <= (scheduled_end + grace)
+
+
 
 def generate_code(length: int = 8) -> str:
     alphabet = string.ascii_uppercase + string.digits
@@ -32,6 +43,16 @@ def resolve_student_name(
         local_part = student_user.email.split("@", 1)[0].strip()
         return local_part or None
     return None
+
+
+def resolve_student_nickname(
+    student_user: User | None,
+    student_profile: Student | None = None
+) -> str | None:
+    """Public-facing student label (nickname preferred over legal name/email)."""
+    if student_profile and student_profile.nickname:
+        return student_profile.nickname
+    return resolve_student_name(student_user, student_profile)
 
 
 def get_student_profile_map(db: Session, user_ids: set) -> dict:
@@ -61,6 +82,7 @@ def lesson_to_read(
         code_confirmed_at=lesson.code_confirmed_at,
         code_confirmed_by_instructor=lesson.code_confirmed_by_instructor,
         student_name=resolve_student_name(student, student_profile),
+        student_nickname=resolve_student_nickname(student, student_profile),
         student_email=student.email if student else None,
         instructor_name=instructor.name if instructor else None,
         has_review=review is not None,
@@ -282,6 +304,14 @@ def confirm_booking(
 
     db.add(lesson)
     db.add(instructor)
+    create_notification(
+        db,
+        user_id=lesson.student_id,
+        type="lesson_confirmed",
+        title="Instrutor respondeu à sua solicitação",
+        message=f"{instructor.name} aceitou sua solicitação de aula. Verifique o status em Meus Agendamentos.",
+        lesson_id=lesson.id,
+    )
     db.commit()
     db.refresh(lesson)
 
@@ -311,8 +341,22 @@ def confirm_lesson_code(
         raise HTTPException(status_code=400, detail="Aula não pode ser validada")
 
     if not lesson.confirmation_code or lesson.confirmation_code != data.code:
-        print(lesson.confirmation_code)
         raise HTTPException(status_code=400, detail="Código inválido")
+
+    # Use same naive clock as booking/schedule writes (server local).
+    now = datetime.now()
+    window_start = lesson.scheduled_start - CODE_CONFIRM_GRACE
+    window_end = lesson.scheduled_end + CODE_CONFIRM_GRACE
+    if now < window_start:
+        raise HTTPException(
+            status_code=400,
+            detail="Só é possível confirmar o código no horário da aula (ou até 30 min antes)"
+        )
+    if now > window_end:
+        raise HTTPException(
+            status_code=400,
+            detail="Prazo para confirmar o código desta aula expirou"
+        )
 
     lesson.status = "completed"
     lesson.code_confirmed_at = datetime.now()
@@ -351,11 +395,31 @@ def cancel_lesson(
 
     lesson.status = "cancelled"
     db.add(lesson)
+
+    instructor = db.query(Instructor).filter(Instructor.id == lesson.instructor_id).first()
+    if user.role == "student" and instructor is not None:
+        create_notification(
+            db,
+            user_id=instructor.user_id,
+            type="lesson_cancelled",
+            title="Aula cancelada pelo aluno",
+            message="Um aluno cancelou uma aula agendada.",
+            lesson_id=lesson.id,
+        )
+    elif user.role == "instructor":
+        create_notification(
+            db,
+            user_id=lesson.student_id,
+            type="lesson_cancelled",
+            title="Aula cancelada pelo instrutor",
+            message="O instrutor cancelou sua aula agendada.",
+            lesson_id=lesson.id,
+        )
+
     db.commit()
     db.refresh(lesson)
 
     student = db.get(User, lesson.student_id)
-    instructor = db.query(Instructor).filter(Instructor.id == lesson.instructor_id).first()
     return lesson_to_read(lesson, student, instructor)
 
 

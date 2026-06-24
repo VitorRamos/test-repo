@@ -120,11 +120,29 @@ export const api = {
       api.request(`/reviews/public/${instructorId}`, { method: "GET" }).catch(() => [])
   },
 
+  notifications: {
+    list: (unreadOnly = false) => {
+      const qs = unreadOnly ? "?unread_only=true" : ""
+      return api.request(`/notifications${qs}`, { method: "GET" }).catch(() => [])
+    },
+    unreadCount: () =>
+      api.request("/notifications/unread-count", { method: "GET" }).catch(() => ({ count: 0 })),
+    markRead: (id: string) =>
+      api.request(`/notifications/${id}/read`, { method: "POST" }),
+    markAllRead: () =>
+      api.request("/notifications/read-all", { method: "POST" })
+  },
+
   instructors: {
     become: (data: any) =>
       api.request("/instructors/", {
         method: "POST",
         body: JSON.stringify(data)
+      }),
+    updatePhoto: (photo_url: string | null) =>
+      api.request("/instructors/me/photo", {
+        method: "PATCH",
+        body: JSON.stringify({ photo_url })
       }),
 
     search: (filters?: any) => {
@@ -145,6 +163,8 @@ export const api = {
 
     getById: (id: string) =>
       api.request(`/instructors/${id}`, { method: "GET" }),
+    getAvailabilitySummary: (id: string) =>
+      api.request(`/instructors/${id}/availability-summary`, { method: "GET" }),
     getAvailableSlots: (id: string, params: { duration_hours: number; date_from?: string; date_to?: string }) => {
       const query = new URLSearchParams({
         duration_hours: String(params.duration_hours)
