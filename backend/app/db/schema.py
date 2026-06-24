@@ -38,3 +38,38 @@ def apply_development_schema_updates(engine: Engine) -> None:
                 },
                 columns,
             )
+
+        if "instructors" in tables:
+            columns = {column["name"] for column in inspector.get_columns("instructors")}
+            _ensure_columns(
+                connection,
+                "instructors",
+                {
+                    "photo_url": "VARCHAR",
+                    "latitude": "FLOAT",
+                    "longitude": "FLOAT",
+                },
+                columns,
+            )
+
+        if "students" in tables:
+            columns = {column["name"] for column in inspector.get_columns("students")}
+            _ensure_columns(connection, "students", {"nickname": "VARCHAR"}, columns)
+
+        if "notifications" not in tables:
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS notifications (
+                        id UUID PRIMARY KEY,
+                        user_id UUID NOT NULL,
+                        type VARCHAR NOT NULL,
+                        title VARCHAR NOT NULL,
+                        message VARCHAR NOT NULL,
+                        lesson_id UUID,
+                        read BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMP
+                    )
+                    """
+                )
+            )
