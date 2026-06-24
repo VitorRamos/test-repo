@@ -33,7 +33,7 @@ export function InstructorMap({ instructors, onSelect }: InstructorMapProps) {
       <p className="instructor-map-hint">
         {withCoords.length
           ? `${withCoords.length} com localização precisa`
-          : "Posições aproximadas por cidade (cadastre latitude/longitude para precisão)"}
+          : "Layout demonstrativo — posições aproximadas por cidade (não é mapa cartográfico)"}
       </p>
       <div className="instructor-map-canvas" aria-label="Mapa simplificado de instrutores">
         {pins.map((instructor, index) => (
