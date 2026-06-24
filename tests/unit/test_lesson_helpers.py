@@ -1,6 +1,13 @@
 """Unit tests for lesson helper functions."""
 
-from backend.app.api.routes.lessons import generate_code, get_student_profile_map
+from datetime import datetime, timedelta
+
+from backend.app.api.routes.lessons import (
+    CODE_CONFIRM_GRACE,
+    generate_code,
+    get_student_profile_map,
+    is_within_code_confirm_window,
+)
 
 
 def test_generate_code_default_length_and_charset():
@@ -30,3 +37,17 @@ def test_get_student_profile_map_indexes_by_user_id(db_session, make_user, make_
     result = get_student_profile_map(db_session, {user.id})
     assert result[user.id].id == profile.id
     assert result[user.id].name == "Perfil Nome"
+
+
+def test_code_confirm_window_edges():
+    start = datetime(2026, 6, 24, 10, 0, 0)
+    end = datetime(2026, 6, 24, 11, 0, 0)
+    grace = CODE_CONFIRM_GRACE
+
+    assert is_within_code_confirm_window(start, end, now=start - grace)
+    assert is_within_code_confirm_window(start, end, now=start)
+    assert is_within_code_confirm_window(start, end, now=end)
+    assert is_within_code_confirm_window(start, end, now=end + grace)
+
+    assert not is_within_code_confirm_window(start, end, now=start - grace - timedelta(seconds=1))
+    assert not is_within_code_confirm_window(start, end, now=end + grace + timedelta(seconds=1))
