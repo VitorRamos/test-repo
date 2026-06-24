@@ -31,7 +31,6 @@
 ## Pendente
 
 
-- Implementar fluxo de pagamento (escrow), incluindo `pending_payment` e liberação ao confirmar código.
 - Bloquear confirmação de código fora do horário da aula (regra de data/horário).
 - Implementar notificações (email ou in-app) para confirmações/cancelamentos.
 
@@ -40,3 +39,7 @@
 - Evoluir filtro dos instrutores com mapa e busca mais avançada.
 - Substituir identificadores do aluno por nickname consistente no backend/frontend.
 - Foto instrutor
+
+## Em PR
+
+- Implementar fluxo de pagamento (escrow), incluindo `pending_payment` e liberação ao confirmar código.

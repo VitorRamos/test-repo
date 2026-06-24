@@ -223,6 +223,26 @@ export function MyBookings({ user }: MyBookingsProps) {
     }
   }
 
+  const [payingId, setPayingId] = useState<string | null>(null)
+
+  const handlePay = async (lessonId: string) => {
+    setPayingId(lessonId)
+    setError(null)
+    setActionMessage(null)
+    try {
+      const result = await api.lessons.pay(lessonId) as { confirmation_code?: string }
+      const codeHint = result?.confirmation_code
+        ? ` Código da aula: ${result.confirmation_code}.`
+        : ""
+      setActionMessage(`Pagamento confirmado e retido em garantia (escrow).${codeHint}`)
+      await loadBookings()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao processar pagamento")
+    } finally {
+      setPayingId(null)
+    }
+  }
+
   const cancelledCount = useMemo(
     () => bookings.filter((lesson) => lesson.status === "cancelled").length,
     [bookings]
