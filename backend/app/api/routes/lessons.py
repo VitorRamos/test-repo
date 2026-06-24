@@ -9,11 +9,13 @@ from backend.app.api.availability_utils import availability_matches_date, parse_
 from backend.app.api.deps import get_db, get_current_user
 from backend.app.models.instructor import Instructor
 from backend.app.models.lesson import Lesson
+from backend.app.models.payment import Payment
 from backend.app.models.student import Student
 from backend.app.models.user import User
 from backend.app.models.review import Review
 from backend.app.models.availability import Availability
 from backend.app.schemas.lesson import LessonBatchCreate, LessonCreate, LessonRead, LessonConfirmCode
+from backend.app.schemas.payment import PLATFORM_FEE_RATE
 from backend.app.services.notifications import create_notification
 
 router = APIRouter()
@@ -61,6 +63,47 @@ def get_student_profile_map(db: Session, user_ids: set) -> dict:
     profiles = db.query(Student).filter(Student.user_id.in_(user_ids)).all()
     return {profile.user_id: profile for profile in profiles}
 
+
+
+
+def ensure_pending_payment_record(db: Session, lesson: Lesson) -> Payment:
+    existing = db.query(Payment).filter(Payment.lesson_id == lesson.id).first()
+    if existing:
+        return existing
+    platform_fee = round(lesson.total_price * PLATFORM_FEE_RATE, 2)
+    instructor_amount = round(lesson.total_price - platform_fee, 2)
+    payment = Payment(
+        lesson_id=lesson.id,
+        student_id=lesson.student_id,
+        instructor_id=lesson.instructor_id,
+        amount=lesson.total_price,
+        platform_fee=platform_fee,
+        instructor_amount=instructor_amount,
+        status="pending",
+    )
+    db.add(payment)
+    db.flush()
+    return payment
+
+
+def refund_payment_for_lesson(db: Session, lesson: Lesson) -> None:
+    payment = db.query(Payment).filter(Payment.lesson_id == lesson.id).first()
+    if not payment:
+        return
+    if payment.status in ("pending", "escrow"):
+        payment.status = "refunded"
+        db.add(payment)
+
+
+def release_payment_for_lesson(db: Session, lesson: Lesson) -> Payment | None:
+    payment = db.query(Payment).filter(Payment.lesson_id == lesson.id).first()
+    if not payment:
+        return None
+    if payment.status == "escrow":
+        payment.status = "released"
+        payment.released_at = datetime.utcnow()
+        db.add(payment)
+    return payment
 
 def lesson_to_read(
     lesson: Lesson,
@@ -298,9 +341,9 @@ def confirm_booking(
         pending_conflict.status = "cancelled"
         db.add(pending_conflict)
 
-    lesson.status = "confirmed"
-    lesson.confirmation_code = generate_code()
-    instructor.total_lessons += 1
+    # Instructor accepts: student must pay before lesson is fully confirmed.
+    lesson.status = "pending_payment"
+    ensure_pending_payment_record(db, lesson)
 
     db.add(lesson)
     db.add(instructor)
@@ -361,6 +404,7 @@ def confirm_lesson_code(
     lesson.status = "completed"
     lesson.code_confirmed_at = datetime.now()
     lesson.code_confirmed_by_instructor = True
+    release_payment_for_lesson(db, lesson)
 
     db.add(lesson)
     db.commit()
@@ -393,6 +437,7 @@ def cancel_lesson(
     else:
         raise HTTPException(status_code=403, detail="Sem permissão para cancelar esta aula")
 
+    refund_payment_for_lesson(db, lesson)
     lesson.status = "cancelled"
     db.add(lesson)
 

@@ -104,7 +104,17 @@ export const api = {
     clearCancelled: () =>
       api.request("/lessons/cancelled", {
         method: "DELETE"
-      }) as Promise<{ deleted: number }>
+      }) as Promise<{ deleted: number }>,
+    pay: (lessonId: string) =>
+      api.request(`/payments/lessons/${lessonId}/pay`, {
+        method: "POST"
+      })
+  },
+  payments: {
+    getForLesson: (lessonId: string) =>
+      api.request(`/payments/lessons/${lessonId}`, { method: "GET" }),
+    mine: () =>
+      api.request("/payments/me", { method: "GET" }).catch(() => [])
   },
   reviews: {
     create: (data: { lesson_id: string; rating: number; comment?: string; is_public?: boolean }) =>
