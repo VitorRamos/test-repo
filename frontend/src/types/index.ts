@@ -18,6 +18,7 @@ export interface Instructor {
   state: string
   created_at: string
   active: boolean
+  photo_url?: string | null
 }
 
 export interface AuthResponse {

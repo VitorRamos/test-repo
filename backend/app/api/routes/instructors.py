@@ -84,6 +84,22 @@ def become_instructor(
     return instructor
 
 
+
+@router.patch("/me/photo", response_model=InstructorRead)
+def update_my_photo(
+    data: InstructorPhotoUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    instructor = db.query(Instructor).filter(Instructor.user_id == user.id).first()
+    if not instructor:
+        raise HTTPException(status_code=404, detail="Instrutor não encontrado")
+    instructor.photo_url = data.photo_url
+    db.add(instructor)
+    db.commit()
+    db.refresh(instructor)
+    return instructor
+
 @router.get("/", response_model=list[InstructorRead])
 def search_instructors(
     db: Session = Depends(get_db),

@@ -35,6 +35,7 @@ class InstructorCreate(BaseModel):
     city: str
     state: str
     bio: str | None = None
+    photo_url: str | None = None
 
     @field_validator("cpf")
     @classmethod
@@ -78,3 +79,20 @@ class InstructorRead(InstructorCreate):
 
     class Config:
         from_attributes = True
+
+
+class InstructorPhotoUpdate(BaseModel):
+    photo_url: str | None = None
+
+    @field_validator("photo_url")
+    @classmethod
+    def validate_photo_url(cls, value: str | None) -> str | None:
+        if value is None or value == "":
+            return None
+        value = value.strip()
+        if len(value) > 2048:
+            raise ValueError("URL da foto muito longa")
+        if not (value.startswith("http://") or value.startswith("https://")):
+            raise ValueError("URL da foto deve começar com http:// ou https://")
+        return value
+

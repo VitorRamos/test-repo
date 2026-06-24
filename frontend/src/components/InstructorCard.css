@@ -427,3 +427,31 @@
     width: 100%;
   }
 }
+
+
+.instructor-avatar-wrap {
+  margin-right: 0.75rem;
+}
+
+.instructor-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+}
+
+.instructor-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  object-fit: cover;
+  background: #e2e8f0;
+}
+
+.instructor-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #1e293b;
+}
