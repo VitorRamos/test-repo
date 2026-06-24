@@ -35,6 +35,9 @@ class InstructorCreate(BaseModel):
     city: str
     state: str
     bio: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    photo_url: str | None = None
 
     @field_validator("cpf")
     @classmethod

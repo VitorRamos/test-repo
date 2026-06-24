@@ -18,6 +18,9 @@ export interface Instructor {
   state: string
   created_at: string
   active: boolean
+  photo_url?: string | null
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface AuthResponse {
