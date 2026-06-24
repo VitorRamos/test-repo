@@ -28,15 +28,17 @@
 - Limpar canceladas, instrutor e aluno.
 - Expandir E2E para drag-select no calendário, navegação entre abas da agenda, filtro de seleção da agenda e remoção agrupada de disponibilidades.
 
+## Em PR (remoto `instructor-main` em VitorRamos/test-repo)
+
+- Implementar fluxo de pagamento (escrow), incluindo `pending_payment` e liberação ao confirmar código. → PR #2 `feat/payment-escrow`
+- Bloquear confirmação de código fora do horário da aula (regra de data/horário). → PR #3 `feat/code-time-window`
+- Implementar notificações (email ou in-app) para confirmações/cancelamentos. → PR #4 `feat/in-app-notifications`
+- Revisar ordenação e UX das listas de aulas do instrutor (pendentes, confirmadas, concluídas). → PR #5 `feat/instructor-lesson-list-ux`
+- Exibir disponibilidade pública do instrutor de forma segura e resumida, sem expor dados desnecessários. → PR #6 `feat/public-availability-summary`
+- Evoluir filtro dos instrutores com mapa e busca mais avançada. → PR #7 `feat/instructor-map-search`
+- Substituir identificadores do aluno por nickname consistente no backend/frontend. → PR `feat/student-nickname`
+- Foto instrutor → PR #8 `feat/instructor-photo`
+
 ## Pendente
 
-
-- Implementar fluxo de pagamento (escrow), incluindo `pending_payment` e liberação ao confirmar código.
-- Bloquear confirmação de código fora do horário da aula (regra de data/horário).
-- Implementar notificações (email ou in-app) para confirmações/cancelamentos.
-
-- Revisar ordenação e UX das listas de aulas do instrutor (pendentes, confirmadas, concluídas).
-- Exibir disponibilidade pública do instrutor de forma segura e resumida, sem expor dados desnecessários.
-- Evoluir filtro dos instrutores com mapa e busca mais avançada.
-- Substituir identificadores do aluno por nickname consistente no backend/frontend.
-- Foto instrutor
+(nenhum — itens acima abertos como PRs)
