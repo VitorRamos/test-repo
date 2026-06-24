@@ -153,6 +153,7 @@ def get_my_lessons(
                 code_confirmed_at=lesson.code_confirmed_at,
                 code_confirmed_by_instructor=lesson.code_confirmed_by_instructor,
                 student_name=resolve_student_name(student, student_profile),
+                student_nickname=resolve_student_name(student, student_profile),
                 student_email=student.email if student else None,
                 instructor_name=instructor.name,
                 has_review=review is not None,
