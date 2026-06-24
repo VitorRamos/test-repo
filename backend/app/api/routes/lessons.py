@@ -17,6 +17,16 @@ from backend.app.schemas.lesson import LessonBatchCreate, LessonCreate, LessonRe
 
 router = APIRouter()
 
+CODE_CONFIRM_GRACE = timedelta(minutes=30)
+
+def is_within_code_confirm_window(scheduled_start, scheduled_end, now=None, grace=None) -> bool:
+    """Return True if now is inside [start-grace, end+grace] for code confirmation."""
+    now = now if now is not None else datetime.now()
+    grace = grace if grace is not None else CODE_CONFIRM_GRACE
+    return (scheduled_start - grace) <= now <= (scheduled_end + grace)
+
+
+
 def generate_code(length: int = 8) -> str:
     alphabet = string.ascii_uppercase + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(length))
@@ -322,8 +332,22 @@ def confirm_lesson_code(
         raise HTTPException(status_code=400, detail="Aula não pode ser validada")
 
     if not lesson.confirmation_code or lesson.confirmation_code != data.code:
-        print(lesson.confirmation_code)
         raise HTTPException(status_code=400, detail="Código inválido")
+
+    # Use same naive clock as booking/schedule writes (server local).
+    now = datetime.now()
+    window_start = lesson.scheduled_start - CODE_CONFIRM_GRACE
+    window_end = lesson.scheduled_end + CODE_CONFIRM_GRACE
+    if now < window_start:
+        raise HTTPException(
+            status_code=400,
+            detail="Só é possível confirmar o código no horário da aula (ou até 30 min antes)"
+        )
+    if now > window_end:
+        raise HTTPException(
+            status_code=400,
+            detail="Prazo para confirmar o código desta aula expirou"
+        )
 
     lesson.status = "completed"
     lesson.code_confirmed_at = datetime.now()

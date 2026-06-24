@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { api } from "../services/api"
 import { useAuth } from "../context/AuthContext"
-import type { AvailableDay, Instructor, Review } from "../types"
+import type { AvailableDay, Instructor, Review } /* + availability summary from API */ from "../types"
 import "./InstructorProfile.css"
 
 const today = new Date()
@@ -15,6 +15,11 @@ export function InstructorProfilePage() {
   const [instructor, setInstructor] = useState<Instructor | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
   const [availableDays, setAvailableDays] = useState<AvailableDay[]>([])
+  const [availabilityMeta, setAvailabilityMeta] = useState<{
+    weekdays: number[]
+    time_windows: { start_time: string; end_time: string }[]
+    has_upcoming_slots: boolean
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -26,14 +31,15 @@ export function InstructorProfilePage() {
       setError(null)
 
       try {
-        const [instructorData, reviewData, availabilityData] = await Promise.all([
+        const [instructorData, reviewData, availabilityData, summaryData] = await Promise.all([
           api.instructors.getById(instructorId) as Promise<Instructor>,
           api.reviews.getPublicByInstructor(instructorId) as Promise<Review[]>,
           api.instructors.getAvailableSlots(instructorId, {
             duration_hours: 1,
             date_from: formatDateInput(today),
             date_to: formatDateInput(new Date(today.getTime() + 1000 * 60 * 60 * 24 * 13))
-          })
+          }),
+          api.instructors.getAvailabilitySummary(instructorId).catch(() => null) as Promise<any>
         ])
 
         if (cancelled) {
@@ -43,6 +49,7 @@ export function InstructorProfilePage() {
         setInstructor(instructorData)
         setReviews(reviewData || [])
         setAvailableDays(availabilityData || [])
+        setAvailabilityMeta(summaryData || null)
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Falha ao carregar perfil do instrutor.")
@@ -204,7 +211,33 @@ export function InstructorProfilePage() {
         <section className="instructor-profile-section">
           <div className="instructor-profile-section-header">
             <h2>Avaliações públicas</h2>
-            <span>{reviews.length} avaliação(ões)</span>
+            <span>
+      {availabilityMeta && (
+        <section className="instructor-profile-availability-summary" style={{ margin: "1rem 0" }}>
+          <h3>Disponibilidade (resumo)</h3>
+          <p style={{ fontSize: "0.9rem", color: "#475569" }}>
+            Dias da semana:{" "}
+            {availabilityMeta.weekdays.length
+              ? availabilityMeta.weekdays
+                  .map((d) => ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][d] ?? d)
+                  .join(", ")
+              : "não informado"}
+          </p>
+          <p style={{ fontSize: "0.9rem", color: "#475569" }}>
+            Janelas:{" "}
+            {availabilityMeta.time_windows.length
+              ? availabilityMeta.time_windows.map((w) => `${w.start_time}–${w.end_time}`).join(", ")
+              : "não informado"}
+          </p>
+          <p style={{ fontSize: "0.85rem", color: "#64748b" }}>
+            {availabilityMeta.has_upcoming_slots
+              ? "Há horários futuros disponíveis para agendamento."
+              : "Sem horários futuros abertos no momento."}
+          </p>
+        </section>
+      )}
+
+      {reviews.length} avaliação(ões)</span>
           </div>
           {reviews.length === 0 ? (
             <p className="instructor-profile-muted">Ainda não há avaliações públicas para este instrutor.</p>
