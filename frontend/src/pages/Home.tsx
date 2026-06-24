@@ -129,6 +129,14 @@ export function Home() {
       Array.from(
         new Set(
           allInstructors
+      <div className="home-advanced-filters" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.75rem" }}>
+        <input aria-label="Estado" placeholder="UF" value={filters.state} onChange={(e) => setFilters((f) => ({ ...f, state: e.target.value }))} style={{ width: "4rem" }} />
+        <input aria-label="Preço mínimo" placeholder="Preço mín" type="number" value={filters.price_min} onChange={(e) => setFilters((f) => ({ ...f, price_min: e.target.value }))} style={{ width: "7rem" }} />
+        <label style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.85rem" }}>
+          <input type="checkbox" checked={filters.has_location} onChange={(e) => setFilters((f) => ({ ...f, has_location: e.target.checked }))} />
+          Só com localização
+        </label>
+      </div>
             .map((instructor) => instructor.city.trim())
             .filter(Boolean)
         )
